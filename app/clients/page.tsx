@@ -4,6 +4,8 @@ import AddClientForm from "./AddClientForm";
 import ClientSearch from "./ClientSearch";
 import EditClientForm from "./EditClientForm";
 import DeleteClientButton from "./DeleteClientButton";
+import ExportClientsButton from "./ExportClientsButton";
+import ImportClientsButton from "./ImportClientsButton";
 
 type ClientsPageProps = {
   searchParams: Promise<{
@@ -66,11 +68,21 @@ export default async function Clients({
 
   return (
     <main className="min-h-screen p-8">
-      <h1 className="text-3xl font-bold">Clients</h1>
+<div className="flex items-center justify-between">
+  <h1 className="text-3xl font-bold">
+    Clients
+  </h1>
 
-      <AddClientForm />
+  <div className="flex gap-2">
+    <ImportClientsButton />
+    <ExportClientsButton />
+  </div>
+</div>
 
-      <ClientSearch />
+
+<AddClientForm key="test" />
+
+<ClientSearch initialSearch={search} />
 
       {error && (
         <p className="mt-4 text-red-600">
@@ -116,8 +128,13 @@ export default async function Clients({
                 {clients.map((client) => (
                   <tr key={client.id}>
                     <td className="border p-3">
-                      {client.full_name}
-                    </td>
+  <a
+    href={`/clients/${client.id}`}
+    className="font-medium text-blue-600 underline"
+  >
+    {client.full_name}
+  </a>
+</td>
 
                     <td className="border p-3">
                       {client.id_number}

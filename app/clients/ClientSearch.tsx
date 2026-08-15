@@ -1,46 +1,66 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
-export default function ClientSearch() {
+type ClientSearchProps = {
+  initialSearch: string;
+};
+
+export default function ClientSearch({
+  initialSearch,
+}: ClientSearchProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const currentSearch = searchParams.get("search") || "";
+  const [search, setSearch] = useState(initialSearch);
 
-  function handleSearch(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const firstRender = useRef(true);
 
-    const formData = new FormData(e.currentTarget);
-    const search = formData.get("search")?.toString().trim() || "";
-
-    const params = new URLSearchParams();
-
-    if (search) {
-      params.set("search", search);
+  useEffect(() => {
+    // Do not perform a search when the component first loads.
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
     }
 
-    const queryString = params.toString();
+    const timeout = setTimeout(() => {
+      const params = new URLSearchParams(
+        window.location.search
+      );
 
-    router.push(queryString ? `/clients?${queryString}` : "/clients");
-  }
+      if (search.trim()) {
+        params.set("search", search.trim());
+      } else {
+        params.delete("search");
+      }
+
+      // Always return to page 1 when search changes.
+      params.delete("page");
+
+      const queryString = params.toString();
+
+      router.replace(
+        queryString
+          ? `/clients?${queryString}`
+          : "/clients",
+        {
+          scroll: false,
+        }
+      );
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [search, router]);
 
   return (
-    <form onSubmit={handleSearch} className="mt-6 flex gap-2 max-w-2xl">
+    <div className="mt-6">
       <input
         type="text"
-        name="search"
-        defaultValue={currentSearch}
-        placeholder="Search by name, ID number, or mobile..."
-        className="flex-1 border border-gray-300 rounded-md p-2"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search by name, ID number or mobile..."
+        className="w-full max-w-md rounded-md border px-3 py-2"
       />
-
-      <button
-        type="submit"
-        className="bg-black text-white px-5 py-2 rounded-md hover:bg-gray-800"
-      >
-        Search
-      </button>
-    </form>
+    </div>
   );
 }

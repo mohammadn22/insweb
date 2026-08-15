@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
+import ExportPoliciesButton from "./ExportPoliciesButton";
 
 export default async function PoliciesPage() {
   const supabase = await createClient();
@@ -34,10 +35,13 @@ export default async function PoliciesPage() {
     <main className="min-h-screen p-8">
       <div className="flex items-center justify-between">
         <div>
+          <div className="flex items-center justify-between">
+
           <h1 className="text-3xl font-bold">
             Insurance Policies
           </h1>
-
+  <ExportPoliciesButton />
+</div>
           <p className="mt-2 text-gray-600">
             Manage your clients&apos; insurance policies.
           </p>

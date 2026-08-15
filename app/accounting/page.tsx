@@ -1,36 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
-
-type ScheduleItem = {
-  payment_schedule_id: string;
-  policy_id: string;
-  amount_remaining: number;
-  due_date: string;
-  description: string;
-  policies: {
-    policy_number: string;
-    end_date: string;
-    clients: {
-      full_name: string;
-      mobile: string | null;
-    } | null;
-  } | null;
-};
-
-function formatMoney(value: number) {
-  return new Intl.NumberFormat("en-US").format(value);
-}
-
-function getToday() {
-  return new Date().toISOString().split("T")[0];
-}
-
-function addDays(dateString: string, days: number) {
-  const date = new Date(`${dateString}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().split("T")[0];
-}
+import AccountingClient from "./AccountingClient";
 
 export default async function AccountingPage() {
   const supabase = await createClient();
@@ -43,353 +13,288 @@ export default async function AccountingPage() {
     redirect("/login");
   }
 
-  const { data, error } = await supabase
-    .from("payment_schedule_accounting")
+  /*
+   * --------------------------------------------------
+   * CLIENTS
+   * --------------------------------------------------
+   */
+
+  const { data: clients, error: clientsError } = await supabase
+    .from("clients")
+    .select("id, full_name, id_number")
+    .order("full_name");
+
+  if (clientsError) {
+    return (
+      <main className="min-h-screen p-8">
+        <div className="mx-auto max-w-7xl">
+          <p className="text-red-600">
+            Failed to load clients: {clientsError.message}
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  /*
+   * --------------------------------------------------
+   * POLICIES
+   * --------------------------------------------------
+   */
+
+  const { data: policies, error: policiesError } = await supabase
+    .from("policies")
     .select(`
-      payment_schedule_id,
+      id,
+      policy_number,
+      policy_type,
+      start_date,
+      end_date,
+      total_price,
+      client_id,
+      clients (
+        id,
+        full_name,
+        id_number
+      )
+    `)
+    .order("end_date", { ascending: true });
+
+  if (policiesError) {
+    return (
+      <main className="min-h-screen p-8">
+        <div className="mx-auto max-w-7xl">
+          <p className="text-red-600">
+            Failed to load policies: {policiesError.message}
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  /*
+   * --------------------------------------------------
+   * PAYMENT SCHEDULE
+   * --------------------------------------------------
+   */
+
+  const { data: schedules, error: schedulesError } = await supabase
+    .from("payment_schedule")
+    .select(`
+      id,
       policy_id,
-      amount_remaining,
-      due_date,
+      sequence_number,
       description,
+      amount_due,
+      due_date,
       policies (
+        id,
         policy_number,
-        end_date,
+        policy_type,
+        client_id,
         clients (
+          id,
           full_name,
-          mobile
+          id_number
         )
       )
     `)
-    .gt("amount_remaining", 0)
-    .order("due_date", {
-      ascending: true,
-    });
+    .order("due_date", { ascending: true });
 
-  const items =
-    (data || []) as unknown as ScheduleItem[];
-
-  const today = getToday();
-  const tomorrow = addDays(today, 1);
-  const dayAfterTomorrow = addDays(today, 2);
-
-  const overdue = items.filter(
-    (item) => item.due_date < today
-  );
-
-  const dueToday = items.filter(
-    (item) => item.due_date === today
-  );
-
-  const dueTomorrow = items.filter(
-    (item) => item.due_date === tomorrow
-  );
-
-  const dueInTwoDays = items.filter(
-    (item) => item.due_date === dayAfterTomorrow
-  );
-
-  const overdueAmount = overdue.reduce(
-    (sum, item) =>
-      sum + Number(item.amount_remaining),
-    0
-  );
-
-  const todayAmount = dueToday.reduce(
-    (sum, item) =>
-      sum + Number(item.amount_remaining),
-    0
-  );
-
-  const tomorrowAmount = dueTomorrow.reduce(
-    (sum, item) =>
-      sum + Number(item.amount_remaining),
-    0
-  );
-
-  const twoDaysAmount = dueInTwoDays.reduce(
-    (sum, item) =>
-      sum + Number(item.amount_remaining),
-    0
-  );
-
-  const priorityItems = overdue.slice(0, 10);
-
-  return (
-    <main className="min-h-screen p-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">
-            Accounting
-          </h1>
-
-          <p className="mt-2 text-gray-600">
-            Payment collection dashboard
+  if (schedulesError) {
+    return (
+      <main className="min-h-screen p-8">
+        <div className="mx-auto max-w-7xl">
+          <p className="text-red-600">
+            Failed to load payment schedules:{" "}
+            {schedulesError.message}
           </p>
         </div>
+      </main>
+    );
+  }
 
-        <Link
-          href="/policies"
-          className="border px-4 py-2 rounded-md"
-        >
-          Policies
-        </Link>
-      </div>
+  /*
+   * --------------------------------------------------
+   * TRANSACTIONS
+   * --------------------------------------------------
+   */
 
-      {error && (
-        <div className="mt-6 rounded-md border border-red-300 bg-red-50 p-4 text-red-700">
-          Failed to load accounting data:{" "}
-          {error.message}
+  const { data: transactions, error: transactionsError } =
+    await supabase
+      .from("transactions")
+      .select(`
+        id,
+        client_id,
+        policy_id,
+        amount,
+        payment_date,
+        payment_method,
+        description,
+        clients (
+          id,
+          full_name,
+          id_number
+        ),
+        policies (
+          id,
+          policy_number,
+          policy_type
+        )
+      `)
+      .order("payment_date", { ascending: false });
+
+  if (transactionsError) {
+    return (
+      <main className="min-h-screen p-8">
+        <div className="mx-auto max-w-7xl">
+          <p className="text-red-600">
+            Failed to load transactions:{" "}
+            {transactionsError.message}
+          </p>
         </div>
-      )}
+      </main>
+    );
+  }
 
-      {!error && (
-        <>
-          {/* SUMMARY CARDS */}
+  /*
+   * --------------------------------------------------
+   * TRANSACTION ALLOCATIONS
+   * --------------------------------------------------
+   */
 
-          <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Link
-              href="/accounting/overdue"
-              className="rounded-lg border p-5 hover:bg-gray-50"
-            >
-              <p className="text-sm text-gray-500">
-                Overdue
-              </p>
+  const scheduleIds = (schedules ?? []).map(
+    (schedule) => schedule.id
+  );
 
-              <p className="mt-2 text-3xl font-bold">
-                {overdue.length}
-              </p>
+  const { data: allocations, error: allocationsError } =
+    scheduleIds.length > 0
+      ? await supabase
+          .from("transaction_allocations")
+          .select(`
+            id,
+            transaction_id,
+            payment_schedule_id,
+            amount
+          `)
+          .in("payment_schedule_id", scheduleIds)
+      : { data: [], error: null };
 
-              <p className="mt-2 text-red-600 font-medium">
-                {formatMoney(overdueAmount)}
-              </p>
+  if (allocationsError) {
+    return (
+      <main className="min-h-screen p-8">
+        <div className="mx-auto max-w-7xl">
+          <p className="text-red-600">
+            Failed to load payment allocations:{" "}
+            {allocationsError.message}
+          </p>
+        </div>
+      </main>
+    );
+  }
 
-              <p className="mt-2 text-sm underline">
-                View overdue →
-              </p>
-            </Link>
+  /*
+   * --------------------------------------------------
+   * SERIALIZE DATA
+   *
+   * We intentionally normalize Supabase relationships
+   * here so the client component doesn't have to deal
+   * with the "never" / array-or-object TypeScript issue.
+   * --------------------------------------------------
+   */
 
-            <Link
-              href="/accounting/today"
-              className="rounded-lg border p-5 hover:bg-gray-50"
-            >
-              <p className="text-sm text-gray-500">
-                Due Today
-              </p>
+  const normalizedPolicies = (policies ?? []).map((policy) => {
+    const client = Array.isArray(policy.clients)
+      ? policy.clients[0]
+      : policy.clients;
 
-              <p className="mt-2 text-3xl font-bold">
-                {dueToday.length}
-              </p>
+    return {
+      id: policy.id,
+      policyNumber: policy.policy_number,
+      policyType: policy.policy_type,
+      startDate: policy.start_date,
+      endDate: policy.end_date,
+      totalPrice: Number(policy.total_price ?? 0),
+      clientId: policy.client_id,
+      clientName: client?.full_name ?? "Unknown",
+      clientIdNumber: client?.id_number ?? "",
+    };
+  });
 
-              <p className="mt-2 font-medium">
-                {formatMoney(todayAmount)}
-              </p>
+  const normalizedSchedules = (schedules ?? []).map((schedule) => {
+    const policy = Array.isArray(schedule.policies)
+      ? schedule.policies[0]
+      : schedule.policies;
 
-              <p className="mt-2 text-sm underline">
-                View today's payments →
-              </p>
-            </Link>
+    const client = policy?.clients
+      ? Array.isArray(policy.clients)
+        ? policy.clients[0]
+        : policy.clients
+      : null;
 
-            <Link
-              href="/accounting/upcoming"
-              className="rounded-lg border p-5 hover:bg-gray-50"
-            >
-              <p className="text-sm text-gray-500">
-                Due Tomorrow
-              </p>
+    return {
+      id: schedule.id,
+      policyId: schedule.policy_id,
+      sequenceNumber: schedule.sequence_number,
+      description: schedule.description,
+      amountDue: Number(schedule.amount_due ?? 0),
+      dueDate: schedule.due_date,
+      policyNumber: policy?.policy_number ?? "Unknown",
+      policyType: policy?.policy_type ?? "Unknown",
+      clientId: policy?.client_id ?? "",
+      clientName: client?.full_name ?? "Unknown",
+      clientIdNumber: client?.id_number ?? "",
+    };
+  });
 
-              <p className="mt-2 text-3xl font-bold">
-                {dueTomorrow.length}
-              </p>
+  const normalizedTransactions = (transactions ?? []).map(
+    (transaction) => {
+      const client = Array.isArray(transaction.clients)
+        ? transaction.clients[0]
+        : transaction.clients;
 
-              <p className="mt-2 font-medium">
-                {formatMoney(tomorrowAmount)}
-              </p>
+      const policy = Array.isArray(transaction.policies)
+        ? transaction.policies[0]
+        : transaction.policies;
 
-              <p className="mt-2 text-sm underline">
-                View upcoming →
-              </p>
-            </Link>
+      return {
+        id: transaction.id,
+        clientId: transaction.client_id,
+        policyId: transaction.policy_id,
+        amount: Number(transaction.amount ?? 0),
+        paymentDate: transaction.payment_date,
+        paymentMethod: transaction.payment_method,
+        description: transaction.description ?? "",
+        clientName: client?.full_name ?? "Unknown",
+        clientIdNumber: client?.id_number ?? "",
+        policyNumber: policy?.policy_number ?? "-",
+        policyType: policy?.policy_type ?? "-",
+      };
+    }
+  );
 
-            <Link
-              href="/accounting/debtors"
-              className="rounded-lg border p-5 hover:bg-gray-50"
-            >
-              <p className="text-sm text-gray-500">
-                Total Outstanding
-              </p>
+  const normalizedAllocations = (allocations ?? []).map(
+    (allocation) => ({
+      id: allocation.id,
+      transactionId: allocation.transaction_id,
+      paymentScheduleId: allocation.payment_schedule_id,
+      amount: Number(allocation.amount ?? 0),
+    })
+  );
 
-              <p className="mt-2 text-3xl font-bold">
-                {items.length}
-              </p>
+  /*
+   * --------------------------------------------------
+   * SEND EVERYTHING TO CLIENT COMPONENT
+   * --------------------------------------------------
+   */
 
-              <p className="mt-2 font-medium">
-                All unpaid payments
-              </p>
-
-              <p className="mt-2 text-sm underline">
-                View all debtors →
-              </p>
-            </Link>
-          </section>
-
-          {/* PRIORITY LIST */}
-
-          <section className="mt-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">
-                  Needs Attention
-                </h2>
-
-                <p className="mt-1 text-gray-600">
-                  The most urgent overdue payments
-                </p>
-              </div>
-
-              <Link
-                href="/accounting/overdue"
-                className="text-sm underline"
-              >
-                View all
-              </Link>
-            </div>
-
-            {priorityItems.length === 0 ? (
-              <div className="mt-4 rounded-lg border p-6 text-gray-600">
-                No overdue payments. 🎉
-              </div>
-            ) : (
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full border-collapse border">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border p-3 text-left">
-                        Client
-                      </th>
-
-                      <th className="border p-3 text-left">
-                        Mobile
-                      </th>
-
-                      <th className="border p-3 text-left">
-                        Policy
-                      </th>
-
-                      <th className="border p-3 text-left">
-                        Payment
-                      </th>
-
-                      <th className="border p-3 text-left">
-                        Due Date
-                      </th>
-
-                      <th className="border p-3 text-left">
-                        Remaining
-                      </th>
-
-                      <th className="border p-3 text-left">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {priorityItems.map((item) => {
-                      const policy = item.policies;
-                      const client = policy?.clients;
-
-                      return (
-                        <tr
-                          key={
-                            item.payment_schedule_id
-                          }
-                        >
-                          <td className="border p-3">
-                            {client?.full_name ||
-                              "Unknown"}
-                          </td>
-
-                          <td className="border p-3">
-                            {client?.mobile || "-"}
-                          </td>
-
-                          <td className="border p-3">
-                            {policy?.policy_number ||
-                              "-"}
-                          </td>
-
-                          <td className="border p-3">
-                            {item.description}
-                          </td>
-
-                          <td className="border p-3">
-                            {item.due_date}
-                          </td>
-
-                          <td className="border p-3 font-semibold">
-                            {formatMoney(
-                              Number(
-                                item.amount_remaining
-                              )
-                            )}
-                          </td>
-
-                          <td className="border p-3">
-                            <Link
-                              href={`/policies/${item.policy_id}`}
-                              className="underline"
-                            >
-                              View
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          {/* QUICK ACTIONS */}
-
-          <section className="mt-10">
-            <h2 className="text-xl font-semibold">
-              Quick Actions
-            </h2>
-
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                href="/accounting/overdue"
-                className="rounded-md border px-4 py-2"
-              >
-                Overdue Payments
-              </Link>
-
-              <Link
-                href="/accounting/today"
-                className="rounded-md border px-4 py-2"
-              >
-                Due Today
-              </Link>
-
-              <Link
-                href="/accounting/upcoming"
-                className="rounded-md border px-4 py-2"
-              >
-                Upcoming Payments
-              </Link>
-
-              <Link
-                href="/accounting/debtors"
-                className="rounded-md border px-4 py-2"
-              >
-                All Debtors
-              </Link>
-            </div>
-          </section>
-        </>
-      )}
-    </main>
+  return (
+    <AccountingClient
+      clients={clients ?? []}
+      policies={normalizedPolicies}
+      schedules={normalizedSchedules}
+      transactions={normalizedTransactions}
+      allocations={normalizedAllocations}
+    />
   );
 }

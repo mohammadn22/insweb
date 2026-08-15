@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import RecordPaymentForm from "./RecordPaymentForm";
+import PolicyTransactionPdf from "./PolicyTransactionPdf";
+import ClientDebtPdf from "./ClientDebtPdf";
 
 type PolicyPageProps = {
   params: Promise<{
@@ -259,6 +261,30 @@ export default async function PolicyDetailsPage({
     0
   );
 
+const pdfSchedule = schedule.map((item) => {
+  const amountDue = Number(item.amount_due || 0);
+
+  const amountPaid =
+    paidBySchedule.get(item.id) || 0;
+
+  const remaining = Math.max(
+    amountDue - amountPaid,
+    0
+  );
+
+  const status = getPaymentStatus(
+    amountDue,
+    amountPaid,
+    item.due_date
+  );
+
+  return {
+    ...item,
+    amount_paid: amountPaid,
+    remaining,
+    status,
+  };
+});  
   const totalScheduled = schedule.reduce(
     (sum, item) =>
       sum + Number(item.amount_due || 0),
@@ -283,15 +309,34 @@ export default async function PolicyDetailsPage({
           ← Back to Policies
         </Link>
 
-        <div className="mt-4">
-          <h1 className="text-3xl font-bold">
-            Policy {policy.policy_number}
-          </h1>
+<div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
-          <p className="mt-2 text-gray-600">
-            {policy.policy_type}
-          </p>
-        </div>
+  <div>
+    <h1 className="text-3xl font-bold">
+      Policy {policy.policy_number}
+    </h1>
+
+    <p className="mt-2 text-gray-600">
+      {policy.policy_type}
+    </p>
+  </div>
+
+  <PolicyTransactionPdf
+    policy={{
+      policy_number: policy.policy_number,
+      policy_type: policy.policy_type,
+      start_date: policy.start_date,
+      end_date: policy.end_date,
+      total_price: totalPrice,
+    }}
+    client={client}
+    schedule={pdfSchedule}
+    transactions={transactions}
+    totalPaid={totalPaid}
+    totalOutstanding={totalOutstanding}
+  />
+
+</div>
       </div>
 
       {/* POLICY INFORMATION */}
