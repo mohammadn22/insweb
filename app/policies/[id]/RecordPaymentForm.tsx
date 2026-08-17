@@ -80,7 +80,7 @@ export default function RecordPaymentForm({
   return (
     <section className="mb-8">
       <h2 className="text-xl font-semibold">
-        Record Payment
+        اطلاعات پرداخت
       </h2>
 
       <form
@@ -89,7 +89,7 @@ export default function RecordPaymentForm({
       >
         <label className="block">
           <span className="block text-sm font-medium">
-            Amount
+            مبلغ پرداختی
           </span>
 
           <input
@@ -105,7 +105,7 @@ export default function RecordPaymentForm({
 
         <label className="block">
           <span className="block text-sm font-medium">
-            Payment date
+            تاریخ پرداخت
           </span>
 
           <input
@@ -121,7 +121,7 @@ export default function RecordPaymentForm({
 
         <label className="block">
           <span className="block text-sm font-medium">
-            Payment method
+            روش پرداخت
           </span>
 
           <select
@@ -131,18 +131,18 @@ export default function RecordPaymentForm({
             }
             className="mt-1 w-full rounded-md border p-2"
           >
-            <option value="cash">Cash</option>
-            <option value="card">Card</option>
+            <option value="cash">پرداخت نقدی</option>
+            <option value="card">کارت به کارت</option>
             <option value="bank_transfer">
-              Bank Transfer
+              پرداخت الکترونیکی
             </option>
-            <option value="other">Other</option>
+            <option value="other">سایر</option>
           </select>
         </label>
 
         <label className="block">
           <span className="block text-sm font-medium">
-            Description
+            توضیحات
           </span>
 
           <input
@@ -151,7 +151,7 @@ export default function RecordPaymentForm({
             onChange={(e) =>
               setDescription(e.target.value)
             }
-            placeholder="Optional"
+            placeholder="..."
             className="mt-1 w-full rounded-md border p-2"
           />
         </label>

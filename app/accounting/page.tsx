@@ -19,18 +19,30 @@ export default async function AccountingPage() {
    * --------------------------------------------------
    */
 
-  const { data: clients, error: clientsError } = await supabase
+  const {
+    data: clients,
+    error: clientsError,
+  } = await supabase
     .from("clients")
     .select("id, full_name, id_number")
     .order("full_name");
 
   if (clientsError) {
     return (
-      <main className="min-h-screen p-8">
+      <main
+        dir="rtl"
+        className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8"
+      >
         <div className="mx-auto max-w-7xl">
-          <p className="text-red-600">
-            Failed to load clients: {clientsError.message}
-          </p>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-5">
+            <h1 className="text-lg font-semibold text-red-800">
+              خطا در بارگذاری اطلاعات
+            </h1>
+
+            <p className="mt-2 text-sm text-red-700">
+              خطا در بارگذاری مشتریان: {clientsError.message}
+            </p>
+          </div>
         </div>
       </main>
     );
@@ -42,7 +54,10 @@ export default async function AccountingPage() {
    * --------------------------------------------------
    */
 
-  const { data: policies, error: policiesError } = await supabase
+  const {
+    data: policies,
+    error: policiesError,
+  } = await supabase
     .from("policies")
     .select(`
       id,
@@ -58,15 +73,27 @@ export default async function AccountingPage() {
         id_number
       )
     `)
-    .order("end_date", { ascending: true });
+    .order("end_date", {
+      ascending: true,
+    });
 
   if (policiesError) {
     return (
-      <main className="min-h-screen p-8">
+      <main
+        dir="rtl"
+        className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8"
+      >
         <div className="mx-auto max-w-7xl">
-          <p className="text-red-600">
-            Failed to load policies: {policiesError.message}
-          </p>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-5">
+            <h1 className="text-lg font-semibold text-red-800">
+              خطا در بارگذاری اطلاعات
+            </h1>
+
+            <p className="mt-2 text-sm text-red-700">
+              خطا در بارگذاری بیمه‌نامه‌ها:{" "}
+              {policiesError.message}
+            </p>
+          </div>
         </div>
       </main>
     );
@@ -78,7 +105,10 @@ export default async function AccountingPage() {
    * --------------------------------------------------
    */
 
-  const { data: schedules, error: schedulesError } = await supabase
+  const {
+    data: schedules,
+    error: schedulesError,
+  } = await supabase
     .from("payment_schedule")
     .select(`
       id,
@@ -99,16 +129,27 @@ export default async function AccountingPage() {
         )
       )
     `)
-    .order("due_date", { ascending: true });
+    .order("due_date", {
+      ascending: true,
+    });
 
   if (schedulesError) {
     return (
-      <main className="min-h-screen p-8">
+      <main
+        dir="rtl"
+        className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8"
+      >
         <div className="mx-auto max-w-7xl">
-          <p className="text-red-600">
-            Failed to load payment schedules:{" "}
-            {schedulesError.message}
-          </p>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-5">
+            <h1 className="text-lg font-semibold text-red-800">
+              خطا در بارگذاری اطلاعات
+            </h1>
+
+            <p className="mt-2 text-sm text-red-700">
+              خطا در بارگذاری برنامه‌های پرداخت:{" "}
+              {schedulesError.message}
+            </p>
+          </div>
         </div>
       </main>
     );
@@ -120,38 +161,51 @@ export default async function AccountingPage() {
    * --------------------------------------------------
    */
 
-  const { data: transactions, error: transactionsError } =
-    await supabase
-      .from("transactions")
-      .select(`
+  const {
+    data: transactions,
+    error: transactionsError,
+  } = await supabase
+    .from("transactions")
+    .select(`
+      id,
+      client_id,
+      policy_id,
+      amount,
+      payment_date,
+      payment_method,
+      description,
+      clients (
         id,
-        client_id,
-        policy_id,
-        amount,
-        payment_date,
-        payment_method,
-        description,
-        clients (
-          id,
-          full_name,
-          id_number
-        ),
-        policies (
-          id,
-          policy_number,
-          policy_type
-        )
-      `)
-      .order("payment_date", { ascending: false });
+        full_name,
+        id_number
+      ),
+      policies (
+        id,
+        policy_number,
+        policy_type
+      )
+    `)
+    .order("payment_date", {
+      ascending: false,
+    });
 
   if (transactionsError) {
     return (
-      <main className="min-h-screen p-8">
+      <main
+        dir="rtl"
+        className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8"
+      >
         <div className="mx-auto max-w-7xl">
-          <p className="text-red-600">
-            Failed to load transactions:{" "}
-            {transactionsError.message}
-          </p>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-5">
+            <h1 className="text-lg font-semibold text-red-800">
+              خطا در بارگذاری اطلاعات
+            </h1>
+
+            <p className="mt-2 text-sm text-red-700">
+              خطا در بارگذاری تراکنش‌ها:{" "}
+              {transactionsError.message}
+            </p>
+          </div>
         </div>
       </main>
     );
@@ -167,7 +221,10 @@ export default async function AccountingPage() {
     (schedule) => schedule.id
   );
 
-  const { data: allocations, error: allocationsError } =
+  const {
+    data: allocations,
+    error: allocationsError,
+  } =
     scheduleIds.length > 0
       ? await supabase
           .from("transaction_allocations")
@@ -177,17 +234,32 @@ export default async function AccountingPage() {
             payment_schedule_id,
             amount
           `)
-          .in("payment_schedule_id", scheduleIds)
-      : { data: [], error: null };
+          .in(
+            "payment_schedule_id",
+            scheduleIds
+          )
+      : {
+          data: [],
+          error: null,
+        };
 
   if (allocationsError) {
     return (
-      <main className="min-h-screen p-8">
+      <main
+        dir="rtl"
+        className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8"
+      >
         <div className="mx-auto max-w-7xl">
-          <p className="text-red-600">
-            Failed to load payment allocations:{" "}
-            {allocationsError.message}
-          </p>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-5">
+            <h1 className="text-lg font-semibold text-red-800">
+              خطا در بارگذاری اطلاعات
+            </h1>
+
+            <p className="mt-2 text-sm text-red-700">
+              خطا در بارگذاری تخصیص پرداخت‌ها:{" "}
+              {allocationsError.message}
+            </p>
+          </div>
         </div>
       </main>
     );
@@ -195,34 +267,46 @@ export default async function AccountingPage() {
 
   /*
    * --------------------------------------------------
-   * SERIALIZE DATA
-   *
-   * We intentionally normalize Supabase relationships
-   * here so the client component doesn't have to deal
-   * with the "never" / array-or-object TypeScript issue.
+   * NORMALIZE POLICIES
    * --------------------------------------------------
    */
 
-  const normalizedPolicies = (policies ?? []).map((policy) => {
-    const client = Array.isArray(policy.clients)
-      ? policy.clients[0]
-      : policy.clients;
+  const normalizedPolicies = (policies ?? []).map(
+    (policy) => {
+      const client = Array.isArray(policy.clients)
+        ? policy.clients[0]
+        : policy.clients;
 
-    return {
-      id: policy.id,
-      policyNumber: policy.policy_number,
-      policyType: policy.policy_type,
-      startDate: policy.start_date,
-      endDate: policy.end_date,
-      totalPrice: Number(policy.total_price ?? 0),
-      clientId: policy.client_id,
-      clientName: client?.full_name ?? "Unknown",
-      clientIdNumber: client?.id_number ?? "",
-    };
-  });
+      return {
+        id: policy.id,
+        policyNumber: policy.policy_number,
+        policyType: policy.policy_type,
+        startDate: policy.start_date,
+        endDate: policy.end_date,
+        totalPrice: Number(
+          policy.total_price ?? 0
+        ),
+        clientId: policy.client_id,
+        clientName:
+          client?.full_name ?? "نامشخص",
+        clientIdNumber:
+          client?.id_number ?? "",
+      };
+    }
+  );
 
-  const normalizedSchedules = (schedules ?? []).map((schedule) => {
-    const policy = Array.isArray(schedule.policies)
+  /*
+   * --------------------------------------------------
+   * NORMALIZE PAYMENT SCHEDULES
+   * --------------------------------------------------
+   */
+
+  const normalizedSchedules = (
+    schedules ?? []
+  ).map((schedule) => {
+    const policy = Array.isArray(
+      schedule.policies
+    )
       ? schedule.policies[0]
       : schedule.policies;
 
@@ -235,58 +319,89 @@ export default async function AccountingPage() {
     return {
       id: schedule.id,
       policyId: schedule.policy_id,
-      sequenceNumber: schedule.sequence_number,
+      sequenceNumber:
+        schedule.sequence_number,
       description: schedule.description,
-      amountDue: Number(schedule.amount_due ?? 0),
+      amountDue: Number(
+        schedule.amount_due ?? 0
+      ),
       dueDate: schedule.due_date,
-      policyNumber: policy?.policy_number ?? "Unknown",
-      policyType: policy?.policy_type ?? "Unknown",
-      clientId: policy?.client_id ?? "",
-      clientName: client?.full_name ?? "Unknown",
-      clientIdNumber: client?.id_number ?? "",
+      policyNumber:
+        policy?.policy_number ?? "نامشخص",
+      policyType:
+        policy?.policy_type ?? "نامشخص",
+      clientId:
+        policy?.client_id ?? "",
+      clientName:
+        client?.full_name ?? "نامشخص",
+      clientIdNumber:
+        client?.id_number ?? "",
     };
   });
 
-  const normalizedTransactions = (transactions ?? []).map(
-    (transaction) => {
-      const client = Array.isArray(transaction.clients)
-        ? transaction.clients[0]
-        : transaction.clients;
+  /*
+   * --------------------------------------------------
+   * NORMALIZE TRANSACTIONS
+   * --------------------------------------------------
+   */
 
-      const policy = Array.isArray(transaction.policies)
-        ? transaction.policies[0]
-        : transaction.policies;
+  const normalizedTransactions = (
+    transactions ?? []
+  ).map((transaction) => {
+    const client = Array.isArray(
+      transaction.clients
+    )
+      ? transaction.clients[0]
+      : transaction.clients;
 
-      return {
-        id: transaction.id,
-        clientId: transaction.client_id,
-        policyId: transaction.policy_id,
-        amount: Number(transaction.amount ?? 0),
-        paymentDate: transaction.payment_date,
-        paymentMethod: transaction.payment_method,
-        description: transaction.description ?? "",
-        clientName: client?.full_name ?? "Unknown",
-        clientIdNumber: client?.id_number ?? "",
-        policyNumber: policy?.policy_number ?? "-",
-        policyType: policy?.policy_type ?? "-",
-      };
-    }
-  );
+    const policy = Array.isArray(
+      transaction.policies
+    )
+      ? transaction.policies[0]
+      : transaction.policies;
 
-  const normalizedAllocations = (allocations ?? []).map(
-    (allocation) => ({
-      id: allocation.id,
-      transactionId: allocation.transaction_id,
-      paymentScheduleId: allocation.payment_schedule_id,
-      amount: Number(allocation.amount ?? 0),
-    })
-  );
+    return {
+      id: transaction.id,
+      clientId: transaction.client_id,
+      policyId: transaction.policy_id,
+      amount: Number(
+        transaction.amount ?? 0
+      ),
+      paymentDate:
+        transaction.payment_date,
+      paymentMethod:
+        transaction.payment_method,
+      description:
+        transaction.description ?? "",
+      clientName:
+        client?.full_name ?? "نامشخص",
+      clientIdNumber:
+        client?.id_number ?? "",
+      policyNumber:
+        policy?.policy_number ?? "-",
+      policyType:
+        policy?.policy_type ?? "-",
+    };
+  });
 
   /*
    * --------------------------------------------------
-   * SEND EVERYTHING TO CLIENT COMPONENT
+   * NORMALIZE ALLOCATIONS
    * --------------------------------------------------
    */
+
+  const normalizedAllocations = (
+    allocations ?? []
+  ).map((allocation) => ({
+    id: allocation.id,
+    transactionId:
+      allocation.transaction_id,
+    paymentScheduleId:
+      allocation.payment_schedule_id,
+    amount: Number(
+      allocation.amount ?? 0
+    ),
+  }));
 
   return (
     <AccountingClient

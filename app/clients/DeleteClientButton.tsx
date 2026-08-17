@@ -17,7 +17,7 @@ export default function DeleteClientButton({
 
   async function handleDelete() {
     const confirmed = window.confirm(
-      `Are you sure you want to delete ${clientName}?`
+      `آیا مطمئن هستید که می‌خواهید ${clientName} را حذف کنید؟`
     );
 
     if (!confirmed) {
@@ -30,7 +30,7 @@ export default function DeleteClientButton({
       .eq("id", clientId);
 
     if (error) {
-      alert("Failed to delete client.");
+      alert("حذف مشتری با خطا مواجه شد.");
       return;
     }
 
@@ -43,7 +43,7 @@ export default function DeleteClientButton({
       onClick={handleDelete}
       className="text-red-600 hover:text-red-800"
     >
-      Delete
+      حذف
     </button>
   );
 }

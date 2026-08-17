@@ -78,7 +78,7 @@ export default function ExportPoliciesButton() {
       onClick={handleExport}
       className="rounded-md border bg-white px-4 py-2 hover:bg-gray-50"
     >
-      Export Policies CSV
+      خروجی CSV از بیمه‌نامه‌ها
     </button>
   );
 }

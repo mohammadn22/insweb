@@ -307,8 +307,8 @@ export default function ImportClientsButton() {
 
           {clients.length > 10 && (
             <p className="mt-2 text-sm text-gray-500">
-              Showing the first 10 of{" "}
-              {clients.length} clients.
+              نمایش ۱۰ مورد اول از{" "}
+              {clients.length} مشتری.
             </p>
           )}
         </div>

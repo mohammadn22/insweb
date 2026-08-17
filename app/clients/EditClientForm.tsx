@@ -50,16 +50,18 @@ export default function EditClientForm({
     if (error) {
       if (error.code === "23505") {
         setMessage(
-          "A client with this ID number already exists."
+          "مراجعی با این کد ملی قبلاً ثبت شده است."
         );
       } else {
-        setMessage("Failed to update client.");
+        setMessage("به‌روزرسانی اطلاعات مشتری انجام نشد.");
       }
 
       return;
     }
 
-    setMessage("Client updated successfully!");
+    setMessage(
+      "اطلاعات مشتری با موفقیت به‌روزرسانی شد."
+    );
 
     router.refresh();
   }
@@ -71,7 +73,7 @@ export default function EditClientForm({
     >
       <div>
         <label className="block mb-1 font-medium">
-          Full Name
+          نام و نام خانوادگی
         </label>
 
         <input
@@ -85,7 +87,7 @@ export default function EditClientForm({
 
       <div>
         <label className="block mb-1 font-medium">
-          ID Number
+          کد ملی
         </label>
 
         <input
@@ -99,7 +101,7 @@ export default function EditClientForm({
 
       <div>
         <label className="block mb-1 font-medium">
-          Mobile Phone Number
+          شماره موبایل
         </label>
 
         <input
@@ -113,7 +115,7 @@ export default function EditClientForm({
 
       <div>
         <label className="block mb-1 font-medium">
-          Address
+          آدرس
         </label>
 
         <textarea
@@ -129,7 +131,7 @@ export default function EditClientForm({
         type="submit"
         className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800"
       >
-        Save Changes
+        ذخیره تغییرات
       </button>
 
       {message && (

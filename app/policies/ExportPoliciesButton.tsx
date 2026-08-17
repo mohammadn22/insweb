@@ -32,17 +32,18 @@ export default function ExportPoliciesButton() {
     const rows = (data ?? []).map((policy) => {
       const client = Array.isArray(policy.clients)
         ? policy.clients[0]
-        : policy.clients;
+        : (policy.clients || null);
 
       return {
-        "Policy Number": policy.policy_number,
-        "Policy Type": policy.policy_type,
-        "Client Name": client?.full_name ?? "",
-        "Client ID Number": client?.id_number ?? "",
-        "Start Date": policy.start_date,
-        "End Date": policy.end_date,
-        "Total Price": policy.total_price ?? 0,
-      };
+  "Policy Number": policy.policy_number,
+  "Policy Type": policy.policy_type,
+  "Client Name": client?.full_name || "",
+  "Client ID Number": client?.id_number || "",
+  "Start Date": policy.start_date,
+  "End Date": policy.end_date,
+  "Total Price": policy.total_price ?? 0,
+};
+
     });
 
     const csv = Papa.unparse(rows);

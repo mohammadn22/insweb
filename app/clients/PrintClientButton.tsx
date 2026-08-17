@@ -11,7 +11,7 @@ export default function PrintClientButton() {
       onClick={handlePrint}
       className="no-print rounded-md bg-black px-5 py-2 text-white hover:bg-gray-800"
     >
-      Print / Save as PDF
+      ذخیره به عنوان PDF
     </button>
   );
 }

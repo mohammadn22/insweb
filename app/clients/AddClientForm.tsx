@@ -29,76 +29,81 @@ export default function AddClientForm() {
 
     if (error) {
       if (error.code === "23505") {
-        setMessage("A client with this ID number already exists.");
+        setMessage("مشتری با این کد ملی از قبل وجود دارد.");
       } else {
-        setMessage("Failed to add client.");
+        setMessage("افزودن مشتری با خطا مواجه شد.");
       }
 
       return;
     }
 
-    setMessage("Client added successfully!");
+    setMessage("مشتری با موفقیت اضافه شد.");
 
     setFullName("");
     setIdNumber("");
     setMobile("");
     setAddress("");
+
     router.refresh();
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-6 max-w-md space-y-4">
+    <form
+      onSubmit={handleSubmit}
+      className="mt-6 max-w-md space-y-4"
+      dir="rtl"
+    >
       <div>
-        <label className="block mb-1 font-medium">
-          Full Name
+        <label className="mb-1 block font-medium">
+          نام و نام خانوادگی
         </label>
 
         <input
           type="text"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          className="w-full border border-gray-300 rounded-md p-2"
+          className="w-full rounded-md border border-gray-300 p-2"
           required
         />
       </div>
 
       <div>
-        <label className="block mb-1 font-medium">
-          ID Number
+        <label className="mb-1 block font-medium">
+          کد ملی
         </label>
 
         <input
           type="text"
           value={idNumber}
           onChange={(e) => setIdNumber(e.target.value)}
-          className="w-full border border-gray-300 rounded-md p-2"
+          className="w-full rounded-md border border-gray-300 p-2"
           required
         />
       </div>
 
       <div>
-        <label className="block mb-1 font-medium">
-          Mobile Phone Number
+        <label className="mb-1 block font-medium">
+          شماره موبایل
         </label>
 
         <input
           type="text"
           value={mobile}
           onChange={(e) => setMobile(e.target.value)}
-          className="w-full border border-gray-300 rounded-md p-2"
+          className="w-full rounded-md border border-gray-300 p-2"
           required
         />
       </div>
 
       <div>
-        <label className="block mb-1 font-medium">
-          Address
+        <label className="mb-1 block font-medium">
+          آدرس
         </label>
 
         <textarea
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          className="w-full border border-gray-300 rounded-md p-2"
+          className="w-full rounded-md border border-gray-300 p-2"
           rows={4}
           required
         />
@@ -106,9 +111,9 @@ export default function AddClientForm() {
 
       <button
         type="submit"
-        className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800"
+        className="rounded-md bg-black px-4 py-2 text-white hover:bg-gray-800"
       >
-        Add Client
+        افزودن مشتری
       </button>
 
       {message && (

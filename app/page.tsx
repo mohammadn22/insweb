@@ -35,29 +35,99 @@ type ScheduleWithPolicy = {
     | {
         policy_number: string;
         client_id: string;
-        clients: ClientRelation | ClientRelation[] | null;
+        clients:
+          | ClientRelation
+          | ClientRelation[]
+          | null;
       }
     | {
         policy_number: string;
         client_id: string;
-        clients: ClientRelation | ClientRelation[] | null;
+        clients:
+          | ClientRelation
+          | ClientRelation[]
+          | null;
       }[]
     | null;
 };
 
+/* --------------------------------------------------
+   HELPERS
+-------------------------------------------------- */
+
 function formatMoney(value: number) {
-  return new Intl.NumberFormat("en-US").format(value);
+  return new Intl.NumberFormat("fa-IR").format(
+    Math.round(value)
+  );
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("fa-IR").format(value);
+}
+
+function formatDate(dateString: string) {
+  if (!dateString) return "—";
+
+  const date = new Date(`${dateString}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
+  return new Intl.DateTimeFormat(
+    "fa-IR-u-ca-persian",
+    {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }
+  ).format(date);
 }
 
 function getToday() {
   return new Date().toISOString().split("T")[0];
 }
 
-function addDays(dateString: string, days: number) {
-  const date = new Date(`${dateString}T00:00:00`);
+function addDays(
+  dateString: string,
+  days: number
+) {
+  const date = new Date(
+    `${dateString}T00:00:00`
+  );
+
   date.setDate(date.getDate() + days);
+
   return date.toISOString().split("T")[0];
 }
+
+function getPaymentMethodLabel(
+  method: string
+) {
+  switch (method) {
+    case "cash":
+      return "نقدی";
+
+    case "installment":
+      return "قسطی";
+
+    case "card":
+      return "کارتخوان";
+
+    case "transfer":
+      return "واریز بانکی";
+
+    case "online":
+      return "آنلاین";
+
+    default:
+      return method || "نامشخص";
+  }
+}
+
+/* --------------------------------------------------
+   DASHBOARD
+-------------------------------------------------- */
 
 export default async function Home() {
   const supabase = await createClient();
@@ -73,132 +143,150 @@ export default async function Home() {
   const today = getToday();
   const tenDaysFromNow = addDays(today, 10);
 
-  // --------------------------------------------------
-  // CLIENT COUNT
-  // --------------------------------------------------
+  /* --------------------------------------------------
+     CLIENT COUNT
+  -------------------------------------------------- */
 
-  const { count: clientCount } = await supabase
-    .from("clients")
-    .select("*", {
-      count: "exact",
-      head: true,
-    });
+  const { count: clientCount } =
+    await supabase
+      .from("clients")
+      .select("*", {
+        count: "exact",
+        head: true,
+      });
 
-  // --------------------------------------------------
-  // POLICIES
-  // --------------------------------------------------
+  /* --------------------------------------------------
+     POLICIES
+  -------------------------------------------------- */
 
-  const { data: policies } = await supabase
-    .from("policies")
-    .select(`
-      id,
-      policy_number,
-      policy_type,
-      start_date,
-      end_date,
-      total_price,
-      clients (
-        full_name
-      )
-    `)
-    .order("end_date", { ascending: true });
+  const { data: policies } =
+    await supabase
+      .from("policies")
+      .select(`
+        id,
+        policy_number,
+        policy_type,
+        start_date,
+        end_date,
+        total_price,
+        clients (
+          full_name
+        )
+      `)
+      .order("end_date", {
+        ascending: true,
+      });
 
   const allPolicies =
-    (policies as unknown as PolicyWithClient[]) || [];
+    (policies as unknown as PolicyWithClient[]) ||
+    [];
 
-  const activePolicies = allPolicies.filter(
-    (policy) =>
-      policy.start_date <= today &&
-      policy.end_date >= today
-  );
+  const activePolicies =
+    allPolicies.filter(
+      (policy) =>
+        policy.start_date <= today &&
+        policy.end_date >= today
+    );
 
-  const expiredPolicies = allPolicies.filter(
-    (policy) => policy.end_date < today
-  );
+  const expiredPolicies =
+    allPolicies.filter(
+      (policy) =>
+        policy.end_date < today
+    );
 
-  const upcomingRenewals = allPolicies.filter(
-    (policy) =>
-      policy.end_date >= today &&
-      policy.end_date <= tenDaysFromNow
-  );
+  const upcomingRenewals =
+    allPolicies.filter(
+      (policy) =>
+        policy.end_date >= today &&
+        policy.end_date <= tenDaysFromNow
+    );
 
-  // --------------------------------------------------
-  // TRANSACTIONS
-  // --------------------------------------------------
+  /* --------------------------------------------------
+     TRANSACTIONS
+  -------------------------------------------------- */
 
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select(`
-      id,
-      amount,
-      payment_date,
-      payment_method,
-      description,
-      policy_id,
-      clients (
-        full_name
-      )
-    `)
-    .order("payment_date", {
-      ascending: false,
-    })
-    .limit(10);
+  const { data: transactions } =
+    await supabase
+      .from("transactions")
+      .select(`
+        id,
+        amount,
+        payment_date,
+        payment_method,
+        description,
+        policy_id,
+        clients (
+          full_name
+        )
+      `)
+      .order("payment_date", {
+        ascending: false,
+      })
+      .limit(10);
 
   const recentTransactions =
-    (transactions as unknown as TransactionWithClient[]) || [];
+    (transactions as unknown as TransactionWithClient[]) ||
+    [];
 
-  // --------------------------------------------------
-  // MONTHLY PAYMENTS
-  // --------------------------------------------------
+  /* --------------------------------------------------
+     MONTHLY PAYMENTS
+  -------------------------------------------------- */
 
   const monthStart = new Date();
 
   monthStart.setDate(1);
 
-  const monthStartString = monthStart
-    .toISOString()
-    .split("T")[0];
+  const monthStartString =
+    monthStart.toISOString().split("T")[0];
 
-  const { data: monthlyTransactions } =
-    await supabase
-      .from("transactions")
-      .select("amount")
-      .gte("payment_date", monthStartString)
-      .lte("payment_date", today);
+  const {
+    data: monthlyTransactions,
+  } = await supabase
+    .from("transactions")
+    .select("amount")
+    .gte(
+      "payment_date",
+      monthStartString
+    )
+    .lte("payment_date", today);
 
   const monthlyReceipts =
     monthlyTransactions?.reduce(
       (sum, transaction) =>
-        sum + Number(transaction.amount || 0),
+        sum +
+        Number(transaction.amount || 0),
       0
     ) || 0;
 
-  // --------------------------------------------------
-  // OUTSTANDING DEBT
-  // --------------------------------------------------
+  /* --------------------------------------------------
+     OUTSTANDING DEBT
+  -------------------------------------------------- */
 
-  const { data: schedules } = await supabase
-    .from("payment_schedule")
-    .select(`
-      id,
-      policy_id,
-      amount_due,
-      due_date,
-      policies (
-        policy_number,
-        client_id,
-        clients (
-          full_name
+  const { data: schedules } =
+    await supabase
+      .from("payment_schedule")
+      .select(`
+        id,
+        policy_id,
+        amount_due,
+        due_date,
+        policies (
+          policy_number,
+          client_id,
+          clients (
+            full_name
+          )
         )
-      )
-    `);
+      `);
 
   const typedSchedules =
-    (schedules as unknown as ScheduleWithPolicy[]) || [];
+    (schedules as unknown as ScheduleWithPolicy[]) ||
+    [];
 
-  const scheduleIds = typedSchedules.map(
-    (item) => item.id
-  );
+  const scheduleIds =
+    typedSchedules.map(
+      (item) => item.id
+    );
 
   const { data: allocations } =
     scheduleIds.length > 0
@@ -228,7 +316,9 @@ export default async function Home() {
     paidBySchedule.set(
       allocation.payment_schedule_id,
       current +
-        Number(allocation.amount || 0)
+        Number(
+          allocation.amount || 0
+        )
     );
   }
 
@@ -246,7 +336,9 @@ export default async function Home() {
       Number(schedule.amount_due || 0);
 
     const amountPaid =
-      paidBySchedule.get(schedule.id) || 0;
+      paidBySchedule.get(
+        schedule.id
+      ) || 0;
 
     const remaining = Math.max(
       amountDue - amountPaid,
@@ -273,11 +365,15 @@ export default async function Home() {
       continue;
     }
 
-    const clientName = Array.isArray(client)
-      ? client[0]?.full_name || "Unknown"
-      : client.full_name || "Unknown";
+    const clientName =
+      Array.isArray(client)
+        ? client[0]?.full_name ||
+          "نامشخص"
+        : client.full_name ||
+          "نامشخص";
 
-    const clientId = policy.client_id;
+    const clientId =
+      policy.client_id;
 
     const existing =
       debtorMap.get(clientId);
@@ -297,7 +393,8 @@ export default async function Home() {
     debtorMap.values()
   )
     .sort(
-      (a, b) => b.amount - a.amount
+      (a, b) =>
+        b.amount - a.amount
     )
     .slice(0, 10);
 
@@ -310,211 +407,309 @@ export default async function Home() {
       0
     );
 
-  // --------------------------------------------------
-  // DASHBOARD
-  // --------------------------------------------------
+  /* --------------------------------------------------
+     DASHBOARD
+  -------------------------------------------------- */
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-7xl">
+    <main
+      dir="rtl"
+      className="min-h-screen bg-gray-50"
+    >
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
 
-        {/* HEADER */}
+        {/* ==============================================
+            HEADER
+        ============================================== */}
 
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">
-              Insurance Dashboard
-            </h1>
+        <header className="mb-8">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
 
-            <p className="mt-2 text-gray-600">
-              Overview of your insurance office.
-            </p>
+            <div>
+              <div className="mb-2 flex items-center gap-2 text-sm text-gray-500">
+                <span>خانه</span>
+                <span className="text-gray-300">
+                  /
+                </span>
+                <span className="text-gray-700">
+                  داشبورد
+                </span>
+              </div>
+
+              <h1 className="text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
+                داشبورد مدیریت
+              </h1>
+
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                نمای کلی وضعیت مشتریان، بیمه‌نامه‌ها و امور مالی
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Link
+                href="/clients/new"
+                className="inline-flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-800 shadow-sm transition hover:border-gray-400 hover:bg-gray-50"
+              >
+                افزودن مشتری
+              </Link>
+
+              <Link
+                href="/policies/new"
+                className="inline-flex h-11 items-center justify-center rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                + افزودن بیمه‌نامه
+              </Link>
+            </div>
           </div>
+        </header>
 
-          <div className="flex gap-3">
-            <Link
-              href="/policies/new"
-              className="rounded-md bg-black px-5 py-2 text-white hover:bg-gray-800"
-            >
-              Add Policy
-            </Link>
+        {/* ==============================================
+            PRIMARY SUMMARY
+        ============================================== */}
 
-            <Link
-              href="/clients/new"
-              className="rounded-md border bg-white px-5 py-2 hover:bg-gray-100"
-            >
-              Add Client
-            </Link>
-          </div>
-        </div>
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-        {/* SUMMARY CARDS */}
+          {/* CLIENTS */}
 
-        <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  تعداد مشتریان
+                </p>
 
-          <div className="rounded-lg border bg-white p-5">
-            <p className="text-sm text-gray-500">
-              Total Clients
-            </p>
+                <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
+                  {formatNumber(
+                    clientCount || 0
+                  )}
+                </p>
+              </div>
 
-            <p className="mt-2 text-3xl font-bold">
-              {clientCount || 0}
-            </p>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-lg text-blue-600">
+                👤
+              </div>
+            </div>
 
             <Link
               href="/clients"
-              className="mt-3 inline-block text-sm underline"
+              className="mt-5 inline-flex text-sm font-medium text-blue-600 hover:text-blue-700"
             >
-              View clients
+              مشاهده مشتریان ←
             </Link>
           </div>
 
-          <div className="rounded-lg border bg-white p-5">
-            <p className="text-sm text-gray-500">
-              Active Policies
-            </p>
+          {/* ACTIVE POLICIES */}
 
-            <p className="mt-2 text-3xl font-bold">
-              {activePolicies.length}
-            </p>
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  بیمه‌نامه‌های فعال
+                </p>
+
+                <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
+                  {formatNumber(
+                    activePolicies.length
+                  )}
+                </p>
+              </div>
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 text-lg text-green-600">
+                ✓
+              </div>
+            </div>
 
             <Link
               href="/policies"
-              className="mt-3 inline-block text-sm underline"
+              className="mt-5 inline-flex text-sm font-medium text-blue-600 hover:text-blue-700"
             >
-              View policies
+              مشاهده بیمه‌نامه‌ها ←
             </Link>
           </div>
 
-          <div className="rounded-lg border bg-white p-5">
-            <p className="text-sm text-gray-500">
-              Renewals in Next 10 Days
-            </p>
+          {/* RENEWALS */}
 
-            <p className="mt-2 text-3xl font-bold">
-              {upcomingRenewals.length}
-            </p>
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  تمدید در ۱۰ روز آینده
+                </p>
 
-            <p className="mt-3 text-sm text-gray-500">
-              {today} → {tenDaysFromNow}
+                <p className="mt-3 text-3xl font-bold tracking-tight text-gray-950">
+                  {formatNumber(
+                    upcomingRenewals.length
+                  )}
+                </p>
+              </div>
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-lg text-amber-600">
+                ↻
+              </div>
+            </div>
+
+            <p className="mt-5 text-xs text-gray-500">
+              از {formatDate(today)} تا{" "}
+              {formatDate(
+                tenDaysFromNow
+              )}
             </p>
           </div>
 
-          <div className="rounded-lg border bg-white p-5">
-            <p className="text-sm text-gray-500">
-              Outstanding Debt
-            </p>
+          {/* DEBT */}
 
-            <p className="mt-2 text-3xl font-bold">
-              {formatMoney(totalOutstanding)}
-            </p>
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                 اقساط باقیمانده
+                </p>
+
+                <p className="mt-3 text-2xl font-bold tracking-tight text-gray-950">
+                  {formatMoney(
+                    totalOutstanding
+                  )}
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  ریال
+                </p>
+              </div>
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-lg text-red-600">
+                !
+              </div>
+            </div>
 
             <Link
               href="/accounting"
-              className="mt-3 inline-block text-sm underline"
+              className="mt-4 inline-flex text-sm font-medium text-blue-600 hover:text-blue-700"
             >
-              View accounting
+              مشاهده حسابداری ←
             </Link>
           </div>
-
         </section>
 
-        {/* SECONDARY SUMMARY */}
+        {/* ==============================================
+            SECONDARY SUMMARY
+        ============================================== */}
 
-        <section className="mt-6 grid gap-4 md:grid-cols-3">
+        <section className="mt-5 grid gap-4 md:grid-cols-3">
 
-          <div className="rounded-lg border bg-white p-5">
+          <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
             <p className="text-sm text-gray-500">
-              Payments This Month
+              دریافت‌های ماه جاری
             </p>
 
-            <p className="mt-2 text-2xl font-bold">
-              {formatMoney(monthlyReceipts)}
+            <div className="mt-2 flex items-baseline gap-2">
+              <p className="text-xl font-bold text-gray-950">
+                {formatMoney(
+                  monthlyReceipts
+                )}
+              </p>
+
+              <span className="text-xs text-gray-400">
+                ریال
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+            <p className="text-sm text-gray-500">
+              بیمه‌نامه‌های منقضی
+            </p>
+
+            <p className="mt-2 text-xl font-bold text-gray-950">
+              {formatNumber(
+                expiredPolicies.length
+              )}
             </p>
           </div>
 
-          <div className="rounded-lg border bg-white p-5">
+          <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
             <p className="text-sm text-gray-500">
-              Expired Policies
+              مجموع بیمه‌نامه‌ها
             </p>
 
-            <p className="mt-2 text-2xl font-bold">
-              {expiredPolicies.length}
+            <p className="mt-2 text-xl font-bold text-gray-950">
+              {formatNumber(
+                allPolicies.length
+              )}
             </p>
           </div>
-
-          <div className="rounded-lg border bg-white p-5">
-            <p className="text-sm text-gray-500">
-              Total Policies
-            </p>
-
-            <p className="mt-2 text-2xl font-bold">
-              {allPolicies.length}
-            </p>
-          </div>
-
         </section>
 
-        {/* UPCOMING RENEWALS */}
+        {/* ==============================================
+            UPCOMING RENEWALS
+        ============================================== */}
 
-        <section className="mt-8 rounded-lg border bg-white p-6">
+        <section className="mt-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 border-b border-gray-200 bg-gray-50 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+
             <div>
-              <h2 className="text-xl font-semibold">
-                Upcoming Renewals
+              <h2 className="text-lg font-bold text-gray-950">
+                بیمه‌نامه‌های نزدیک به تمدید
               </h2>
 
               <p className="mt-1 text-sm text-gray-500">
-                Policies expiring within the next
-                10 days.
+                بیمه‌نامه‌هایی که در ۱۰ روز آینده منقضی می‌شوند
               </p>
             </div>
 
             <Link
               href="/policies"
-              className="text-sm underline"
+              className="text-sm font-semibold text-blue-600 hover:text-blue-700"
             >
-              View all
+              مشاهده همه ←
             </Link>
           </div>
 
           {upcomingRenewals.length === 0 ? (
-            <p className="mt-6 text-gray-500">
-              No policies are due for renewal
-              within the next 10 days.
-            </p>
-          ) : (
-            <div className="mt-6 overflow-x-auto">
+            <div className="px-6 py-12 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+                ✓
+              </div>
 
-              <table className="w-full border-collapse">
+              <p className="mt-4 text-sm font-medium text-gray-700">
+                بیمه‌نامه‌ای برای تمدید وجود ندارد
+              </p>
+
+              <p className="mt-1 text-xs text-gray-400">
+                در حال حاضر موردی برای پیگیری وجود ندارد.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px] text-right">
 
                 <thead>
-                  <tr className="border-b text-left">
-
-                    <th className="p-3">
-                      Client
+                  <tr className="border-b border-gray-200 bg-white">
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500">
+                      مشتری
                     </th>
 
-                    <th className="p-3">
-                      Policy
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500">
+                      شماره بیمه‌نامه
                     </th>
 
-                    <th className="p-3">
-                      Type
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500">
+                      نوع بیمه‌نامه
                     </th>
 
-                    <th className="p-3">
-                      Expiry
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500">
+                      تاریخ انقضا
                     </th>
 
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500">
+                      وضعیت
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {upcomingRenewals.map(
                     (policy) => {
-
                       const client =
                         Array.isArray(
                           policy.clients
@@ -525,142 +720,176 @@ export default async function Home() {
                       return (
                         <tr
                           key={policy.id}
-                          className="border-b"
+                          className="border-b border-gray-100 transition last:border-0 hover:bg-gray-50"
                         >
-
-                          <td className="p-3">
-                            {client?.full_name ||
-                              "Unknown"}
+                          <td className="px-6 py-4">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {client?.full_name ||
+                                "نامشخص"}
+                            </p>
                           </td>
 
-                          <td className="p-3">
+                          <td className="px-6 py-4">
                             <Link
                               href={`/policies/${policy.id}`}
-                              className="font-medium underline"
+                              className="text-sm font-semibold text-blue-600 hover:text-blue-700"
                             >
                               {policy.policy_number}
                             </Link>
                           </td>
 
-                          <td className="p-3">
+                          <td className="px-6 py-4 text-sm text-gray-600">
                             {policy.policy_type}
                           </td>
 
-                          <td className="p-3">
-                            {policy.end_date}
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {formatDate(
+                              policy.end_date
+                            )}
                           </td>
 
+                          <td className="px-6 py-4">
+                            <span className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                              نزدیک به تمدید
+                            </span>
+                          </td>
                         </tr>
                       );
                     }
                   )}
                 </tbody>
-
               </table>
-
             </div>
           )}
-
         </section>
 
-        {/* DEBTORS + TRANSACTIONS */}
+        {/* ==============================================
+            DEBTORS + TRANSACTIONS
+        ============================================== */}
 
-        <section className="mt-8 grid gap-8 lg:grid-cols-2">
+        <section className="mt-8 grid gap-6 lg:grid-cols-2">
 
-          {/* DEBTORS */}
+          {/* ============================================
+              DEBTORS
+          ============================================ */}
 
-          <div className="rounded-lg border bg-white p-6">
+          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-5 py-5 sm:px-6">
 
               <div>
-                <h2 className="text-xl font-semibold">
-                  Top Debtors
+                <h2 className="text-lg font-bold text-gray-950">
+                  بدهکاران
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-500">
-                  Customers with the highest
-                  outstanding balances.
+                  مشتریان با بیشترین بدهی
                 </p>
               </div>
 
               <Link
                 href="/accounting"
-                className="text-sm underline"
+                className="text-sm font-semibold text-blue-600 hover:text-blue-700"
               >
-                View accounting
+                حسابداری ←
               </Link>
-
             </div>
 
             {debtors.length === 0 ? (
-              <p className="mt-6 text-gray-500">
-                No outstanding debts.
-              </p>
+              <div className="px-6 py-12 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-50 text-green-600">
+                  ✓
+                </div>
+
+                <p className="mt-4 text-sm font-medium text-gray-700">
+                  بدهی معوقی وجود ندارد
+                </p>
+              </div>
             ) : (
-              <div className="mt-6 space-y-3">
+              <div className="divide-y divide-gray-100">
+                {debtors.map(
+                  (debtor, index) => (
+                    <div
+                      key={debtor.clientId}
+                      className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-gray-50 sm:px-6"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
 
-                {debtors.map((debtor) => (
-                  <div
-                    key={debtor.clientId}
-                    className="flex items-center justify-between border-b pb-3"
-                  >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-600">
+                          {formatNumber(
+                            index + 1
+                          )}
+                        </div>
 
-                    <div>
-                      <p className="font-medium">
-                        {debtor.clientName}
-                      </p>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-gray-900">
+                            {debtor.clientName}
+                          </p>
+
+                          <p className="mt-1 text-xs text-gray-400">
+                            مبلغ بدهی
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 text-left">
+                        <p className="text-sm font-bold text-red-600">
+                          {formatMoney(
+                            debtor.amount
+                          )}
+                        </p>
+
+                        <p className="mt-1 text-[11px] text-gray-400">
+                          ریال
+                        </p>
+                      </div>
                     </div>
-
-                    <p className="font-semibold">
-                      {formatMoney(
-                        debtor.amount
-                      )}
-                    </p>
-
-                  </div>
-                ))}
-
+                  )
+                )}
               </div>
             )}
+          </section>
 
-          </div>
+          {/* ============================================
+              RECENT TRANSACTIONS
+          ============================================ */}
 
-          {/* RECENT TRANSACTIONS */}
+          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
 
-          <div className="rounded-lg border bg-white p-6">
-
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-5 py-5 sm:px-6">
 
               <div>
-                <h2 className="text-xl font-semibold">
-                  Recent Transactions
+                <h2 className="text-lg font-bold text-gray-950">
+                  تراکنش‌های اخیر
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-500">
-                  Latest recorded payments.
+                  آخرین پرداخت‌های ثبت‌شده
                 </p>
               </div>
 
               <Link
                 href="/accounting"
-                className="text-sm underline"
+                className="text-sm font-semibold text-blue-600 hover:text-blue-700"
               >
-                View all
+                مشاهده همه ←
               </Link>
-
             </div>
 
             {recentTransactions.length === 0 ? (
-              <p className="mt-6 text-gray-500">
-                No transactions recorded.
-              </p>
-            ) : (
-              <div className="mt-6 space-y-3">
+              <div className="px-6 py-12 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+                  —
+                </div>
 
+                <p className="mt-4 text-sm font-medium text-gray-700">
+                  تراکنشی ثبت نشده است
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
                 {recentTransactions.map(
                   (transaction) => {
-
                     const client =
                       Array.isArray(
                         transaction.clients
@@ -671,44 +900,61 @@ export default async function Home() {
                     return (
                       <div
                         key={transaction.id}
-                        className="flex items-center justify-between border-b pb-3"
+                        className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-gray-50 sm:px-6"
                       >
-
-                        <div>
-
-                          <p className="font-medium">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-gray-900">
                             {client?.full_name ||
-                              "Unknown"}
+                              "نامشخص"}
                           </p>
 
-                          <p className="text-sm text-gray-500">
-                            {transaction.payment_date}{" "}
-                            ·{" "}
-                            {transaction.payment_method}
-                          </p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                            <span>
+                              {formatDate(
+                                transaction.payment_date
+                              )}
+                            </span>
 
+                            <span className="text-gray-300">
+                              •
+                            </span>
+
+                            <span>
+                              {getPaymentMethodLabel(
+                                transaction.payment_method
+                              )}
+                            </span>
+                          </div>
                         </div>
 
-                        <p className="font-semibold">
-                          {formatMoney(
-                            Number(
-                              transaction.amount
-                            )
-                          )}
-                        </p>
+                        <div className="shrink-0 text-left">
+                          <p className="text-sm font-bold text-green-600">
+                            +{" "}
+                            {formatMoney(
+                              Number(
+                                transaction.amount
+                              )
+                            )}
+                          </p>
 
+                          <p className="mt-1 text-[11px] text-gray-400">
+                            ریال
+                          </p>
+                        </div>
                       </div>
                     );
                   }
                 )}
-
               </div>
             )}
-
-          </div>
-
+          </section>
         </section>
 
+        {/* ==============================================
+            FOOTER SPACING
+        ============================================== */}
+
+        <div className="h-8" />
       </div>
     </main>
   );

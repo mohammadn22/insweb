@@ -58,7 +58,7 @@ export default function ClientSearch({
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search by name, ID number or mobile..."
+        placeholder="جست‌و‌جوی نام، شماره ملی یا شماره موبایل..."
         className="w-full max-w-md rounded-md border px-3 py-2"
       />
     </div>

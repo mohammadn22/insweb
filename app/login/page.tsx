@@ -26,13 +26,13 @@ async function handleLogin(e: any) {
     <main className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-md">
         <h1 className="text-3xl font-bold text-center mb-6">
-          Login
+          ورود
         </h1>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block mb-1 font-medium">
-              Email
+              ایمیل
             </label>
 
           <input
@@ -40,13 +40,13 @@ async function handleLogin(e: any) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full border border-gray-300 rounded-md p-2"
-                placeholder="Enter your email"
+                placeholder="لطفا آدرس ایمیل خود را وارد کنید"
             />
           </div>
 
           <div>
             <label className="block mb-1 font-medium">
-              Password
+              رمز عبور
             </label>
 
             <input
@@ -54,7 +54,7 @@ async function handleLogin(e: any) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full border border-gray-300 rounded-md p-2"
-                placeholder="Enter your password"
+                placeholder="لطفا رمز عبور را وارد کنید"
             />
           </div>
 
@@ -62,7 +62,7 @@ async function handleLogin(e: any) {
             type="submit"
             className="w-full bg-black text-white py-2 rounded-md hover:bg-gray-800"
           >
-            Login
+            ورود
           </button>
         </form>
       </div>

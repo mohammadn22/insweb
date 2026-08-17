@@ -2,8 +2,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import RecordPaymentForm from "./RecordPaymentForm";
-import PolicyTransactionPdf from "./PolicyTransactionPdf";
-import ClientDebtPdf from "./ClientDebtPdf";
 
 type PolicyPageProps = {
   params: Promise<{
@@ -66,7 +64,42 @@ type Allocation = {
 };
 
 function formatMoney(value: number) {
-  return new Intl.NumberFormat("en-US").format(value);
+  return new Intl.NumberFormat("fa-IR").format(Math.round(value));
+}
+
+function formatDate(date: string) {
+  if (!date) {
+    return "-";
+  }
+
+  try {
+    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(`${date}T00:00:00`));
+  } catch {
+    return date;
+  }
+}
+
+function formatPaymentMethod(method: string) {
+  switch (method) {
+    case "cash":
+      return "نقد";
+
+    case "bank_transfer":
+      return "انتقال بانکی";
+
+    case "card":
+      return "کارت";
+
+    case "other":
+      return "سایر";
+
+    default:
+      return method;
+  }
 }
 
 function getPaymentStatus(
@@ -77,7 +110,7 @@ function getPaymentStatus(
   const remaining = Math.max(amountDue - amountPaid, 0);
 
   if (remaining <= 0) {
-    return "Paid";
+    return "پرداخت شده";
   }
 
   const today = new Date();
@@ -86,18 +119,37 @@ function getPaymentStatus(
   const due = new Date(`${dueDate}T00:00:00`);
 
   if (amountPaid > 0 && due < today) {
-    return "Partially Overdue";
+    return "تاخیر جزئی";
   }
 
   if (amountPaid > 0) {
-    return "Partially Paid";
+    return "پرداخت جزئی";
   }
 
   if (due < today) {
-    return "Overdue";
+    return "سررسید گذشته";
   }
 
-  return "Due";
+  return "سررسید نشده";
+}
+
+function getStatusStyle(status: string) {
+  switch (status) {
+    case "پرداخت شده":
+      return "bg-green-50 text-green-700 ring-1 ring-inset ring-green-200";
+
+    case "تاخیر جزئی":
+      return "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200";
+
+    case "سررسید گذشته":
+      return "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200";
+
+    case "پرداخت جزئی":
+      return "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200";
+
+    default:
+      return "bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-200";
+  }
 }
 
 export default async function PolicyDetailsPage({
@@ -119,7 +171,10 @@ export default async function PolicyDetailsPage({
   // POLICY
   // --------------------------------------------------
 
-  const { data: policyData, error: policyError } = await supabase
+  const {
+    data: policyData,
+    error: policyError,
+  } = await supabase
     .from("policies")
     .select(`
       id,
@@ -229,7 +284,7 @@ export default async function PolicyDetailsPage({
   }
 
   // --------------------------------------------------
-  // CALCULATE PAID AMOUNT FOR EACH SCHEDULE ITEM
+  // CALCULATE ALLOCATED AMOUNT FOR EACH SCHEDULE
   // --------------------------------------------------
 
   const paidBySchedule = new Map<string, number>();
@@ -245,283 +300,314 @@ export default async function PolicyDetailsPage({
   }
 
   // --------------------------------------------------
-  // CALCULATE POLICY TOTALS
+  // POLICY TOTALS
   // --------------------------------------------------
 
   const totalPrice = Number(policy.total_price || 0);
 
-  const totalPaid = transactions.reduce(
-    (sum, transaction) =>
-      sum + Number(transaction.amount || 0),
+  const totalTransactionAmount = transactions.reduce(
+    (sum, transaction) => sum + Number(transaction.amount || 0),
+    0
+  );
+
+  const totalAllocatedAmount = allocations.reduce(
+    (sum, allocation) => sum + Number(allocation.amount || 0),
+    0
+  );
+
+  const unallocatedAmount = Math.max(
+    totalTransactionAmount - totalAllocatedAmount,
     0
   );
 
   const totalOutstanding = Math.max(
-    totalPrice - totalPaid,
+    totalPrice - totalAllocatedAmount,
     0
   );
 
-const pdfSchedule = schedule.map((item) => {
-  const amountDue = Number(item.amount_due || 0);
-
-  const amountPaid =
-    paidBySchedule.get(item.id) || 0;
-
-  const remaining = Math.max(
-    amountDue - amountPaid,
-    0
-  );
-
-  const status = getPaymentStatus(
-    amountDue,
-    amountPaid,
-    item.due_date
-  );
-
-  return {
-    ...item,
-    amount_paid: amountPaid,
-    remaining,
-    status,
-  };
-});  
-  const totalScheduled = schedule.reduce(
-    (sum, item) =>
-      sum + Number(item.amount_due || 0),
-    0
-  );
-
-  // Avoid unused-variable warning while keeping this
-  // useful for future validation.
-  void totalScheduled;
-
-  // --------------------------------------------------
-  // RENDER
-  // --------------------------------------------------
+  const paidPercentage =
+    totalPrice > 0
+      ? Math.min((totalAllocatedAmount / totalPrice) * 100, 100)
+      : 0;
 
   return (
-    <main className="min-h-screen p-8">
-      <div className="mb-8">
-        <Link
-          href="/policies"
-          className="text-sm underline"
-        >
-          ← Back to Policies
-        </Link>
+    <main
+      dir="rtl"
+      className="min-h-screen bg-[#f8fafc] text-[#1a1a1a]"
+    >
+      <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
 
-<div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        {/* PAGE HEADER */}
+        <header className="mb-8">
+          <Link
+            href={`/clients/${policy.client_id}`}
+            className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-[#0066CC] transition-colors hover:text-[#0052a3]"
+          >
+            <span aria-hidden="true">←</span>
+            بازگشت به مشتری
+          </Link>
 
-  <div>
-    <h1 className="text-3xl font-bold">
-      Policy {policy.policy_number}
-    </h1>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#0066CC]">
+                  {policy.policy_type}
+                </span>
 
-    <p className="mt-2 text-gray-600">
-      {policy.policy_type}
-    </p>
-  </div>
+                {totalOutstanding <= 0 ? (
+                  <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                    تسویه شده
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
+                    تسویه نشده
+                  </span>
+                )}
+              </div>
 
-  <PolicyTransactionPdf
-    policy={{
-      policy_number: policy.policy_number,
-      policy_type: policy.policy_type,
-      start_date: policy.start_date,
-      end_date: policy.end_date,
-      total_price: totalPrice,
-    }}
-    client={client}
-    schedule={pdfSchedule}
-    transactions={transactions}
-    totalPaid={totalPaid}
-    totalOutstanding={totalOutstanding}
-  />
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                بیمه‌نامه {policy.policy_number}
+              </h1>
 
-</div>
-      </div>
+              {client && (
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#666666]">
+                  <span>{client.full_name}</span>
 
-      {/* POLICY INFORMATION */}
+                  {client.id_number && (
+                    <>
+                      <span className="hidden text-gray-300 sm:inline">
+                        |
+                      </span>
+                      <span>کد ملی: {client.id_number}</span>
+                    </>
+                  )}
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold">
-          Policy Information
-        </h2>
+                  {client.mobile && (
+                    <>
+                      <span className="hidden text-gray-300 sm:inline">
+                        |
+                      </span>
+                      <span>{client.mobile}</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="rounded-md border p-4">
-            <p className="text-sm text-gray-500">
-              Client
-            </p>
-
-            <p className="font-medium">
-              {client?.full_name || "Unknown"}
-            </p>
+        {/* POLICY INFORMATION */}
+        <section className="mb-6 rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm sm:p-6">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold">اطلاعات بیمه‌نامه</h2>
+              <p className="mt-1 text-sm text-[#666666]">
+                اطلاعات اصلی قرارداد و بازه اعتبار بیمه‌نامه
+              </p>
+            </div>
           </div>
 
-          <div className="rounded-md border p-4">
-            <p className="text-sm text-gray-500">
-              ID Number
-            </p>
+          <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-5">
+            <div>
+              <p className="mb-2 text-xs font-semibold text-[#666666]">
+                شماره بیمه‌نامه
+              </p>
+              <p className="font-semibold">{policy.policy_number}</p>
+            </div>
 
-            <p className="font-medium">
-              {client?.id_number || "-"}
-            </p>
+            <div>
+              <p className="mb-2 text-xs font-semibold text-[#666666]">
+                نوع بیمه‌نامه
+              </p>
+              <p className="font-semibold">{policy.policy_type}</p>
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold text-[#666666]">
+                تاریخ شروع
+              </p>
+              <p className="font-semibold">
+                {formatDate(policy.start_date)}
+              </p>
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold text-[#666666]">
+                تاریخ پایان
+              </p>
+              <p className="font-semibold">
+                {formatDate(policy.end_date)}
+              </p>
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold text-[#666666]">
+                تعداد اقساط
+              </p>
+              <p className="font-semibold">
+                {policy.installment_count}
+              </p>
+            </div>
           </div>
+        </section>
 
-          <div className="rounded-md border p-4">
-            <p className="text-sm text-gray-500">
-              Mobile
-            </p>
-
-            <p className="font-medium">
-              {client?.mobile || "-"}
-            </p>
-          </div>
-
-          <div className="rounded-md border p-4">
-            <p className="text-sm text-gray-500">
-              Policy Type
-            </p>
-
-            <p className="font-medium">
-              {policy.policy_type}
-            </p>
-          </div>
-
-          <div className="rounded-md border p-4">
-            <p className="text-sm text-gray-500">
-              Start Date
-            </p>
-
-            <p className="font-medium">
-              {policy.start_date}
-            </p>
-          </div>
-
-          <div className="rounded-md border p-4">
-            <p className="text-sm text-gray-500">
-              End Date
-            </p>
-
-            <p className="font-medium">
-              {policy.end_date}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* PAYMENT SUMMARY */}
-
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold">
-          Payment Summary
-        </h2>
-
-        <div className="mt-4 grid gap-4 md:grid-cols-4">
-          <div className="rounded-md border p-4">
-            <p className="text-sm text-gray-500">
-              Total Price
-            </p>
-
-            <p className="text-xl font-semibold">
+        {/* FINANCIAL SUMMARY */}
+        <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm">
+            <p className="text-sm text-[#666666]">مجموع قیمت</p>
+            <p className="mt-2 text-2xl font-bold">
               {formatMoney(totalPrice)}
             </p>
+            <p className="mt-1 text-xs text-[#666666]">تومان</p>
           </div>
 
-          <div className="rounded-md border p-4">
-            <p className="text-sm text-gray-500">
-              Total Paid
+          <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm">
+            <p className="text-sm text-[#666666]">مجموع دریافتی</p>
+            <p className="mt-2 text-2xl font-bold">
+              {formatMoney(totalTransactionAmount)}
             </p>
-
-            <p className="text-xl font-semibold">
-              {formatMoney(totalPaid)}
-            </p>
+            <p className="mt-1 text-xs text-[#666666]">تومان</p>
           </div>
 
-          <div className="rounded-md border p-4">
-            <p className="text-sm text-gray-500">
-              Outstanding
+          <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm">
+            <p className="text-sm text-[#666666]">تخصیص یافته</p>
+            <p className="mt-2 text-2xl font-bold text-green-700">
+              {formatMoney(totalAllocatedAmount)}
             </p>
+            <p className="mt-1 text-xs text-[#666666]">تومان</p>
+          </div>
 
-            <p className="text-xl font-semibold">
+          <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm">
+            <p className="text-sm text-[#666666]">باقی‌مانده</p>
+            <p className="mt-2 text-2xl font-bold text-red-600">
               {formatMoney(totalOutstanding)}
             </p>
+            <p className="mt-1 text-xs text-[#666666]">تومان</p>
           </div>
 
-          <div className="rounded-md border p-4">
-            <p className="text-sm text-gray-500">
-              Payment Status
+          <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm">
+            <p className="text-sm text-[#666666]">تخصیص نیافته</p>
+            <p className="mt-2 text-2xl font-bold text-orange-600">
+              {formatMoney(unallocatedAmount)}
             </p>
 
-            <p className="text-xl font-semibold">
-              {totalOutstanding <= 0
-                ? "Fully Paid"
-                : "Outstanding"}
+            {unallocatedAmount > 0 ? (
+              <p className="mt-1 text-xs text-orange-600">
+                دریافت شده اما تخصیص نیافته
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-[#666666]">
+                بدون مبلغ اضافی
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* PAYMENT PROGRESS */}
+        <section className="mb-6 rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-[#666666]">
+                وضعیت پرداخت بیمه‌نامه
+              </p>
+
+              <div className="mt-2 flex items-center gap-3">
+                <h2 className="text-xl font-bold">
+                  {totalOutstanding <= 0
+                    ? "بیمه‌نامه به‌طور کامل پرداخت شده"
+                    : "بیمه‌نامه هنوز تسویه نشده"}
+                </h2>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    totalOutstanding <= 0
+                      ? "bg-green-50 text-green-700"
+                      : "bg-orange-50 text-orange-700"
+                  }`}
+                >
+                  {Math.round(paidPercentage)}٪ پرداخت
+                </span>
+              </div>
+            </div>
+
+            <div className="text-left">
+              <p className="text-sm text-[#666666]">مانده حساب</p>
+              <p className="mt-1 text-xl font-bold">
+                {formatMoney(totalOutstanding)} تومان
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 h-2 overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-[#0066CC] transition-all"
+              style={{ width: `${paidPercentage}%` }}
+            />
+          </div>
+
+          {unallocatedAmount > 0 && (
+            <div className="mt-5 rounded-lg border-r-4 border-orange-400 bg-orange-50 px-4 py-3 text-sm text-orange-800">
+              مبلغ{" "}
+              <strong>{formatMoney(unallocatedAmount)} تومان</strong>{" "}
+              دریافت شده اما هنوز به برنامه پرداخت تخصیص داده نشده است.
+            </div>
+          )}
+        </section>
+
+        {/* PAYMENT SCHEDULE */}
+        <section className="mb-6 rounded-xl border border-[#e5e7eb] bg-white shadow-sm">
+          <div className="border-b border-[#e5e7eb] p-5 sm:p-6">
+            <h2 className="text-xl font-bold">برنامه پرداخت</h2>
+            <p className="mt-1 text-sm text-[#666666]">
+              وضعیت هر پرداخت و مبلغ باقی‌مانده آن
             </p>
           </div>
-        </div>
-      </section>
 
-      {/* PAYMENT SCHEDULE */}
+          {scheduleError && (
+            <div className="m-5 rounded-lg border-r-4 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-700">
+              خطا در بارگذاری برنامه پرداخت: {scheduleError.message}
+            </div>
+          )}
 
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold">
-          Payment Schedule
-        </h2>
+          {allocationsError && (
+            <div className="mx-5 mb-5 rounded-lg border-r-4 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-700">
+              خطا در بارگذاری تخصیص پرداخت‌ها:{" "}
+              {allocationsError.message}
+            </div>
+          )}
 
-        {scheduleError && (
-          <p className="mt-4 text-red-600">
-            Failed to load payment schedule:{" "}
-            {scheduleError.message}
-          </p>
-        )}
-
-        {allocationsError && (
-          <p className="mt-4 text-red-600">
-            Failed to load payment allocations:{" "}
-            {allocationsError.message}
-          </p>
-        )}
-
-        {!scheduleError &&
-          schedule.length > 0 && (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full border-collapse border">
+          {!scheduleError && schedule.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[850px]">
                 <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border p-3 text-left">
+                  <tr className="border-b border-[#e5e7eb] bg-[#f5f5f5]">
+                    <th className="px-5 py-4 text-right text-sm font-bold">
                       #
                     </th>
-
-                    <th className="border p-3 text-left">
-                      Description
+                    <th className="px-5 py-4 text-right text-sm font-bold">
+                      توضیح
                     </th>
-
-                    <th className="border p-3 text-left">
-                      Due Date
+                    <th className="px-5 py-4 text-right text-sm font-bold">
+                      تاریخ سررسید
                     </th>
-
-                    <th className="border p-3 text-left">
-                      Amount Due
+                    <th className="px-5 py-4 text-right text-sm font-bold">
+                      مبلغ سررسید
                     </th>
-
-                    <th className="border p-3 text-left">
-                      Paid
+                    <th className="px-5 py-4 text-right text-sm font-bold">
+                      پرداخت شده
                     </th>
-
-                    <th className="border p-3 text-left">
-                      Remaining
+                    <th className="px-5 py-4 text-right text-sm font-bold">
+                      باقی‌مانده
                     </th>
-
-                    <th className="border p-3 text-left">
-                      Status
+                    <th className="px-5 py-4 text-right text-sm font-bold">
+                      وضعیت
                     </th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {schedule.map((item) => {
-                    const amountDue =
-                      Number(item.amount_due || 0);
+                  {schedule.map((item, index) => {
+                    const amountDue = Number(item.amount_due || 0);
 
                     const amountPaid =
                       paidBySchedule.get(item.id) || 0;
@@ -531,43 +617,66 @@ const pdfSchedule = schedule.map((item) => {
                       0
                     );
 
-                    const status =
-                      getPaymentStatus(
-                        amountDue,
-                        amountPaid,
-                        item.due_date
-                      );
+                    const overallocated = Math.max(
+                      amountPaid - amountDue,
+                      0
+                    );
+
+                    const status = getPaymentStatus(
+                      amountDue,
+                      amountPaid,
+                      item.due_date
+                    );
 
                     return (
-                      <tr key={item.id}>
-                        <td className="border p-3">
+                      <tr
+                        key={item.id}
+                        className={`border-b border-[#e5e7eb] transition-colors hover:bg-[#f8fafc] ${
+                          index % 2 === 1 ? "bg-[#fafafa]" : "bg-white"
+                        }`}
+                      >
+                        <td className="px-5 py-4 text-sm">
                           {item.sequence_number === 0
                             ? "-"
                             : item.sequence_number}
                         </td>
 
-                        <td className="border p-3">
+                        <td className="px-5 py-4 text-sm font-medium">
                           {item.description}
                         </td>
 
-                        <td className="border p-3">
-                          {item.due_date}
+                        <td className="px-5 py-4 text-sm text-[#666666]">
+                          {formatDate(item.due_date)}
                         </td>
 
-                        <td className="border p-3">
+                        <td className="px-5 py-4 text-sm font-semibold">
                           {formatMoney(amountDue)}
                         </td>
 
-                        <td className="border p-3">
-                          {formatMoney(amountPaid)}
+                        <td className="px-5 py-4 text-sm">
+                          <span className="font-semibold">
+                            {formatMoney(amountPaid)}
+                          </span>
+
+                          {overallocated > 0 && (
+                            <p className="mt-1 text-xs text-orange-600">
+                              +{formatMoney(overallocated)} اضافی
+                            </p>
+                          )}
                         </td>
 
-                        <td className="border p-3">
+                        <td className="px-5 py-4 text-sm font-semibold">
                           {formatMoney(remaining)}
                         </td>
 
-                        <td className="border p-3">
-                          {status}
+                        <td className="px-5 py-4">
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusStyle(
+                              status
+                            )}`}
+                          >
+                            {status}
+                          </span>
                         </td>
                       </tr>
                     );
@@ -577,136 +686,180 @@ const pdfSchedule = schedule.map((item) => {
             </div>
           )}
 
-        {!scheduleError &&
-          schedule.length === 0 && (
-            <p className="mt-4 text-gray-600">
-              No payment schedule found.
-            </p>
+          {!scheduleError && schedule.length === 0 && (
+            <div className="p-8 text-center text-sm text-[#666666]">
+              برنامه پرداختی برای این بیمه‌نامه پیدا نشد.
+            </div>
           )}
-      </section>
+        </section>
 
-      {/* RECORD PAYMENT */}
-
-      <section className="mb-8">
-        <h2 className="mb-4 text-xl font-semibold">
-          Record Payment
-        </h2>
-
-        <RecordPaymentForm policyId={id} />
-      </section>
-
-      {/* TRANSACTIONS */}
-
-      <section>
-        <h2 className="text-xl font-semibold">
-          Transactions
-        </h2>
-
-        {transactionsError && (
-          <p className="mt-4 text-red-600">
-            Failed to load transactions:{" "}
-            {transactionsError.message}
-          </p>
-        )}
-
-        {!transactionsError &&
-          transactions.length === 0 && (
-            <p className="mt-4 text-gray-600">
-              No transactions recorded.
+        {/* RECORD PAYMENT */}
+        <section className="mb-6 rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm sm:p-6">
+          <div className="mb-5">
+            <h2 className="text-xl font-bold">ثبت پرداخت</h2>
+            <p className="mt-1 text-sm text-[#666666]">
+              دریافت جدید مشتری را برای این بیمه‌نامه ثبت کنید.
             </p>
+          </div>
+
+          <RecordPaymentForm policyId={id} />
+        </section>
+
+        {/* TRANSACTIONS */}
+        <section className="rounded-xl border border-[#e5e7eb] bg-white shadow-sm">
+          <div className="border-b border-[#e5e7eb] p-5 sm:p-6">
+            <h2 className="text-xl font-bold">تراکنش‌ها</h2>
+            <p className="mt-1 text-sm text-[#666666]">
+              تمام پرداخت‌های ثبت‌شده برای این بیمه‌نامه
+            </p>
+          </div>
+
+          {transactionsError && (
+            <div className="m-5 rounded-lg border-r-4 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-700">
+              خطا در بارگذاری تراکنش‌ها:{" "}
+              {transactionsError.message}
+            </div>
           )}
 
-        {!transactionsError &&
-          transactions.length > 0 && (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full border-collapse border">
+          {!transactionsError && transactions.length === 0 && (
+            <div className="p-8 text-center">
+              <p className="font-medium">هنوز تراکنشی ثبت نشده است.</p>
+              <p className="mt-1 text-sm text-[#666666]">
+                پس از ثبت اولین پرداخت، اطلاعات آن در این بخش نمایش داده
+                می‌شود.
+              </p>
+            </div>
+          )}
+
+          {!transactionsError && transactions.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[850px]">
                 <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border p-3 text-left">
-                      Date
+                  <tr className="border-b border-[#e5e7eb] bg-[#f5f5f5]">
+                    <th className="px-5 py-4 text-right text-sm font-bold">
+                      تاریخ
                     </th>
-
-                    <th className="border p-3 text-left">
-                      Amount
+                    <th className="px-5 py-4 text-right text-sm font-bold">
+                      مبلغ
                     </th>
-
-                    <th className="border p-3 text-left">
-                      Method
+                    <th className="px-5 py-4 text-right text-sm font-bold">
+                      روش پرداخت
                     </th>
-
-                    <th className="border p-3 text-left">
-                      Description
+                    <th className="px-5 py-4 text-right text-sm font-bold">
+                      توضیح
                     </th>
-
-                    <th className="border p-3 text-left">
-                      Allocated To
+                    <th className="px-5 py-4 text-right text-sm font-bold">
+                      تخصیص یافته به
                     </th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {transactions.map((transaction) => {
+                  {transactions.map((transaction, index) => {
                     const transactionAllocations =
                       allocations.filter(
                         (allocation) =>
-                          allocation.transaction_id ===
-                          transaction.id
+                          allocation.transaction_id === transaction.id
                       );
 
+                    const allocatedAmount =
+                      transactionAllocations.reduce(
+                        (sum, allocation) =>
+                          sum + Number(allocation.amount || 0),
+                        0
+                      );
+
+                    const transactionUnallocated = Math.max(
+                      Number(transaction.amount || 0) -
+                        allocatedAmount,
+                      0
+                    );
+
                     return (
-                      <tr key={transaction.id}>
-                        <td className="border p-3">
-                          {transaction.payment_date}
+                      <tr
+                        key={transaction.id}
+                        className={`border-b border-[#e5e7eb] transition-colors hover:bg-[#f8fafc] ${
+                          index % 2 === 1 ? "bg-[#fafafa]" : "bg-white"
+                        }`}
+                      >
+                        <td className="px-5 py-4 text-sm text-[#666666]">
+                          {formatDate(transaction.payment_date)}
                         </td>
 
-                        <td className="border p-3 font-medium">
+                        <td className="px-5 py-4 text-sm font-bold">
                           {formatMoney(
                             Number(transaction.amount)
-                          )}
+                          )}{" "}
+                          تومان
                         </td>
 
-                        <td className="border p-3">
-                          {transaction.payment_method}
+                        <td className="px-5 py-4 text-sm">
+                          <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                            {formatPaymentMethod(
+                              transaction.payment_method
+                            )}
+                          </span>
                         </td>
 
-                        <td className="border p-3">
+                        <td className="px-5 py-4 text-sm text-[#666666]">
                           {transaction.description || "-"}
                         </td>
 
-                        <td className="border p-3">
-                          {transactionAllocations.length ===
-                          0 ? (
-                            "-"
+                        <td className="px-5 py-4 text-sm">
+                          {transactionAllocations.length === 0 ? (
+                            <div>
+                              <span className="text-[#666666]">-</span>
+
+                              {transactionUnallocated > 0 && (
+                                <p className="mt-1 text-xs font-medium text-orange-600">
+                                  {formatMoney(
+                                    transactionUnallocated
+                                  )}{" "}
+                                  تخصیص نیافته
+                                </p>
+                              )}
+                            </div>
                           ) : (
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                               {transactionAllocations.map(
-                                (allocation, index) => {
+                                (allocation, allocationIndex) => {
                                   const scheduleItem =
                                     Array.isArray(
                                       allocation.payment_schedule
                                     )
-                                      ? allocation
-                                          .payment_schedule[0]
+                                      ? allocation.payment_schedule[0]
                                       : allocation.payment_schedule;
 
                                   return (
                                     <div
-                                      key={`${allocation.payment_schedule_id}-${index}`}
+                                      key={`${allocation.payment_schedule_id}-${allocationIndex}`}
+                                      className="flex items-center justify-between gap-4 rounded-md bg-gray-50 px-3 py-2"
                                     >
-                                      {scheduleItem?.description ||
-                                        `Installment ${
-                                          scheduleItem?.sequence_number ??
-                                          "-"
-                                        }`}
-                                      {" — "}
-                                      {formatMoney(
-                                        Number(
-                                          allocation.amount
-                                        )
-                                      )}
+                                      <span>
+                                        {scheduleItem?.description ||
+                                          `قسط ${
+                                            scheduleItem?.sequence_number ??
+                                            "-"
+                                          }`}
+                                      </span>
+
+                                      <span className="font-semibold whitespace-nowrap">
+                                        {formatMoney(
+                                          Number(allocation.amount)
+                                        )}
+                                      </span>
                                     </div>
                                   );
                                 }
+                              )}
+
+                              {transactionUnallocated > 0 && (
+                                <p className="mt-2 text-xs font-medium text-orange-600">
+                                  {formatMoney(
+                                    transactionUnallocated
+                                  )}{" "}
+                                  تخصیص نیافته
+                                </p>
                               )}
                             </div>
                           )}
@@ -718,7 +871,8 @@ const pdfSchedule = schedule.map((item) => {
               </table>
             </div>
           )}
-      </section>
+        </section>
+      </div>
     </main>
   );
 }
