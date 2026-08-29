@@ -349,6 +349,11 @@ export default async function Home() {
       continue;
     }
 
+        if (schedule.due_date >= today) {
+      continue;
+    }
+
+
     const policy = Array.isArray(
       schedule.policies
     )
@@ -562,7 +567,7 @@ export default async function Home() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">
-                 اقساط باقیمانده
+                 بدهی معوق
                 </p>
 
                 <p className="mt-3 text-2xl font-bold tracking-tight text-gray-950">
@@ -582,10 +587,10 @@ export default async function Home() {
             </div>
 
             <Link
-              href="/accounting"
+              href="/debtors"
               className="mt-4 inline-flex text-sm font-medium text-blue-600 hover:text-blue-700"
             >
-              مشاهده حسابداری ←
+              مشاهده بدهکاران ←
             </Link>
           </div>
         </section>
@@ -788,10 +793,10 @@ export default async function Home() {
               </div>
 
               <Link
-                href="/accounting"
+                href="/debtors"
                 className="text-sm font-semibold text-blue-600 hover:text-blue-700"
               >
-                حسابداری ←
+                مشاهده همه ←
               </Link>
             </div>
 

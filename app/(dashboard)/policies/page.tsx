@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import ExportPoliciesButton from "./ExportPoliciesButton";
+import ImportPoliciesButton from "./ImportPoliciesButton";
+
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat("fa-IR").format(
@@ -137,6 +139,7 @@ export default async function PoliciesPage() {
 
               {/* Secondary action */}
               <ExportPoliciesButton />
+              <ImportPoliciesButton />
 
               {/* Primary action */}
               <Link

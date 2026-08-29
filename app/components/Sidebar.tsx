@@ -20,6 +20,11 @@ const navigation = [
     icon: DocumentIcon,
   },
   {
+    title: "بدهکاران",
+    href: "/debtors",
+    icon: DebtIcon,
+  },
+  {
     title: "حسابداری",
     href: "/accounting",
     icon: WalletIcon,
@@ -34,10 +39,6 @@ const accountingNavigation = [
   {
     title: "حساب مشتریان",
     href: "/accounting/clients",
-  },
-  {
-    title: "بدهکاران",
-    href: "/accounting/debtors",
   },
   {
     title: "سررسید گذشته",
@@ -426,6 +427,25 @@ function CollapseIcon({
           <path d="M15 18l-6-6 6-6" />
         </>
       )}
+    </svg>
+  );
+}
+
+function DebtIcon() {
+  return (
+    <svg
+      width="21"
+      height="21"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <line x1="12" y1="8" x2="12" y2="13" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
     </svg>
   );
 }
