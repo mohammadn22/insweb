@@ -157,8 +157,14 @@ export default async function AccountingPage() {
 
   /*
    * --------------------------------------------------
-   * TRANSACTIONS
+   * TRANSACTIONS (with embedded allocations)
    * --------------------------------------------------
+   * transaction_allocations is embedded directly here instead of
+   * fetched separately with `.in("payment_schedule_id", scheduleIds)`.
+   * That second query's URL grows with the number of payment_schedule
+   * rows and can exceed request URL limits once there are many (e.g.
+   * after a large policy import), causing a hard "fetch failed" at
+   * the network layer rather than a normal Postgres error.
    */
 
   const {
@@ -183,6 +189,11 @@ export default async function AccountingPage() {
         id,
         policy_number,
         policy_type
+      ),
+      transaction_allocations (
+        id,
+        payment_schedule_id,
+        amount
       )
     `)
     .order("payment_date", {
@@ -204,60 +215,6 @@ export default async function AccountingPage() {
             <p className="mt-2 text-sm text-red-700">
               خطا در بارگذاری تراکنش‌ها:{" "}
               {transactionsError.message}
-            </p>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  /*
-   * --------------------------------------------------
-   * TRANSACTION ALLOCATIONS
-   * --------------------------------------------------
-   */
-
-  const scheduleIds = (schedules ?? []).map(
-    (schedule) => schedule.id
-  );
-
-  const {
-    data: allocations,
-    error: allocationsError,
-  } =
-    scheduleIds.length > 0
-      ? await supabase
-          .from("transaction_allocations")
-          .select(`
-            id,
-            transaction_id,
-            payment_schedule_id,
-            amount
-          `)
-          .in(
-            "payment_schedule_id",
-            scheduleIds
-          )
-      : {
-          data: [],
-          error: null,
-        };
-
-  if (allocationsError) {
-    return (
-      <main
-        dir="rtl"
-        className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8"
-      >
-        <div className="mx-auto max-w-7xl">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-5">
-            <h1 className="text-lg font-semibold text-red-800">
-              خطا در بارگذاری اطلاعات
-            </h1>
-
-            <p className="mt-2 text-sm text-red-700">
-              خطا در بارگذاری تخصیص پرداخت‌ها:{" "}
-              {allocationsError.message}
             </p>
           </div>
         </div>
@@ -386,22 +343,28 @@ export default async function AccountingPage() {
 
   /*
    * --------------------------------------------------
-   * NORMALIZE ALLOCATIONS
+   * NORMALIZE ALLOCATIONS (flattened from transactions)
    * --------------------------------------------------
    */
 
-  const normalizedAllocations = (
-    allocations ?? []
-  ).map((allocation) => ({
-    id: allocation.id,
-    transactionId:
-      allocation.transaction_id,
-    paymentScheduleId:
-      allocation.payment_schedule_id,
-    amount: Number(
-      allocation.amount ?? 0
-    ),
-  }));
+  const normalizedAllocations = (transactions ?? []).flatMap(
+    (transaction) => {
+      const allocations = Array.isArray(
+        transaction.transaction_allocations
+      )
+        ? transaction.transaction_allocations
+        : transaction.transaction_allocations
+          ? [transaction.transaction_allocations]
+          : [];
+
+      return allocations.map((allocation) => ({
+        id: allocation.id,
+        transactionId: transaction.id,
+        paymentScheduleId: allocation.payment_schedule_id,
+        amount: Number(allocation.amount ?? 0),
+      }));
+    }
+  );
 
   return (
     <AccountingClient

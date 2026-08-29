@@ -12,11 +12,16 @@ type PolicyRelation = {
   clients: ClientRelation | ClientRelation[] | null;
 };
 
+type AllocationRelation = {
+  amount: number;
+};
+
 type ScheduleWithPolicy = {
   id: string;
   amount_due: number;
   due_date: string;
   policies: PolicyRelation | PolicyRelation[] | null;
+  transaction_allocations: AllocationRelation | AllocationRelation[] | null;
 };
 
 export type Debtor = {
@@ -48,6 +53,14 @@ export default async function DebtorsPage() {
    * A debt only exists once the due date has passed. Installments due
    * today or in the future are intentionally excluded at the query
    * level so the rest of this page never has to reason about them.
+   *
+   * transaction_allocations is embedded directly here (instead of a
+   * second query filtered with `.in(paymentScheduleId, [...])`) because
+   * that second query's URL grows with the number of overdue
+   * installments and can exceed request URL limits once there are many
+   * rows (e.g. after a large policy import), causing a hard
+   * "fetch failed" at the network layer rather than a normal Postgres
+   * error.
    */
   const { data: schedules, error: schedulesError } = await supabase
     .from("payment_schedule")
@@ -62,6 +75,9 @@ export default async function DebtorsPage() {
           full_name,
           mobile
         )
+      ),
+      transaction_allocations (
+        amount
       )
     `
     )
@@ -86,44 +102,6 @@ export default async function DebtorsPage() {
 
   const typedSchedules = (schedules ?? []) as unknown as ScheduleWithPolicy[];
 
-  const scheduleIds = typedSchedules.map((schedule) => schedule.id);
-
-  const { data: allocations, error: allocationsError } =
-    scheduleIds.length > 0
-      ? await supabase
-          .from("transaction_allocations")
-          .select("payment_schedule_id, amount")
-          .in("payment_schedule_id", scheduleIds)
-      : { data: [], error: null };
-
-  if (allocationsError) {
-    return (
-      <main dir="rtl" className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-5">
-            <h1 className="text-lg font-semibold text-red-800">
-              خطا در بارگذاری اطلاعات
-            </h1>
-            <p className="mt-2 text-sm text-red-700">
-              خطا در بارگذاری تخصیص پرداخت‌ها: {allocationsError.message}
-            </p>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  const paidBySchedule = new Map<string, number>();
-
-  for (const allocation of allocations ?? []) {
-    const current = paidBySchedule.get(allocation.payment_schedule_id) ?? 0;
-
-    paidBySchedule.set(
-      allocation.payment_schedule_id,
-      current + Number(allocation.amount || 0)
-    );
-  }
-
   const debtorMap = new Map<string, Debtor>();
 
   for (const schedule of typedSchedules) {
@@ -143,8 +121,17 @@ export default async function DebtorsPage() {
       continue;
     }
 
+    const allocations = Array.isArray(schedule.transaction_allocations)
+      ? schedule.transaction_allocations
+      : schedule.transaction_allocations
+        ? [schedule.transaction_allocations]
+        : [];
+
     const amountDue = Number(schedule.amount_due || 0);
-    const amountPaid = paidBySchedule.get(schedule.id) ?? 0;
+    const amountPaid = allocations.reduce(
+      (sum, allocation) => sum + Number(allocation.amount || 0),
+      0
+    );
     const remaining = Math.max(amountDue - amountPaid, 0);
 
     // Fully paid overdue installments are not debt.
