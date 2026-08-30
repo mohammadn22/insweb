@@ -28,6 +28,14 @@ type Policy = {
   clients: Client | Client[] | null;
 };
 
+type SortField =
+  | "recent"
+  | "policy_number"
+  | "start_date"
+  | "end_date";
+
+type SortableField = Exclude<SortField, "recent">;
+
 /* =========================================================
    CONSTANTS
 ========================================================= */
@@ -241,15 +249,14 @@ export default function PoliciesPage() {
   const [search, setSearch] =
     useState("");
 
+  const [typeFilter, setTypeFilter] =
+    useState("");
+
   const [page, setPage] =
     useState(1);
 
   const [sortField, setSortField] =
-    useState<
-      "recent" |
-      "policy_number" |
-      "start_date"
-    >("recent");
+    useState<SortField>("recent");
 
   const [sortDirection, setSortDirection] =
     useState<
@@ -338,7 +345,25 @@ export default function PoliciesPage() {
   }, []);
 
   /* =======================================================
-     SEARCH + SORT
+     POLICY TYPES (derived from loaded data)
+  ======================================================= */
+
+  const policyTypes = useMemo(() => {
+    const types = new Set<string>();
+
+    for (const policy of policies) {
+      if (policy.policy_type) {
+        types.add(policy.policy_type);
+      }
+    }
+
+    return Array.from(types).sort((a, b) =>
+      a.localeCompare(b, "fa")
+    );
+  }, [policies]);
+
+  /* =======================================================
+     SEARCH + FILTER + SORT
   ======================================================= */
 
   const filteredAndSortedPolicies =
@@ -390,6 +415,17 @@ export default function PoliciesPage() {
               );
             }
           );
+      }
+
+      /* ---------------------------------------------------
+         TYPE FILTER
+      --------------------------------------------------- */
+
+      if (typeFilter) {
+        result = result.filter(
+          (policy) =>
+            policy.policy_type === typeFilter
+        );
       }
 
       /* ---------------------------------------------------
@@ -460,6 +496,33 @@ export default function PoliciesPage() {
         );
       }
 
+      if (
+        sortField ===
+        "end_date"
+      ) {
+        result.sort(
+          (a, b) => {
+            const aValue =
+              a.end_date ??
+              "";
+
+            const bValue =
+              b.end_date ??
+              "";
+
+            const comparison =
+              aValue.localeCompare(
+                bValue
+              );
+
+            return sortDirection ===
+              "asc"
+              ? comparison
+              : -comparison;
+          }
+        );
+      }
+
       /*
        * "recent" means newest created first.
        */
@@ -494,6 +557,7 @@ export default function PoliciesPage() {
     }, [
       policies,
       search,
+      typeFilter,
       sortField,
       sortDirection,
     ]);
@@ -523,7 +587,7 @@ export default function PoliciesPage() {
     );
 
   /*
-   * If search/sort reduces the number of pages,
+   * If search/filter/sort reduces the number of pages,
    * make sure we don't remain on a nonexistent page.
    */
   useEffect(() => {
@@ -549,18 +613,27 @@ export default function PoliciesPage() {
   }
 
   /* =======================================================
+     TYPE FILTER
+  ======================================================= */
+
+  function handleTypeFilterChange(
+    value: string
+  ) {
+    setTypeFilter(value);
+    setPage(1);
+  }
+
+  /* =======================================================
      SORT
   ======================================================= */
 
   function handleSort(
-    field:
-      | "policy_number"
-      | "start_date"
+    field: SortableField
   ) {
     setPage(1);
 
     /*
-     * Clicking the same sort button reverses
+     * Clicking the same sort column reverses
      * the direction.
      */
     if (
@@ -642,7 +715,7 @@ export default function PoliciesPage() {
           page - 2
         );
 
-      let end =
+      const end =
         Math.min(
           totalPages,
           start +
@@ -678,6 +751,42 @@ export default function PoliciesPage() {
       page,
       totalPages,
     ]);
+
+  /* =======================================================
+     SORTABLE COLUMN HEADER
+  ======================================================= */
+
+  function SortableHeader({
+    label,
+    field,
+  }: {
+    label: string;
+    field: SortableField;
+  }) {
+    const active = sortField === field;
+
+    return (
+      <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600">
+        <button
+          type="button"
+          onClick={() => handleSort(field)}
+          className={`inline-flex items-center gap-1 transition hover:text-gray-900 ${
+            active ? "text-blue-700" : ""
+          }`}
+        >
+          {label}
+
+          <span className="text-[10px] leading-none">
+            {active
+              ? sortDirection === "asc"
+                ? "▲"
+                : "▼"
+              : "⇅"}
+          </span>
+        </button>
+      </th>
+    );
+  }
 
   /* =======================================================
      LOADING
@@ -826,7 +935,7 @@ export default function PoliciesPage() {
         <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
 
           {/* =================================================
-              SEARCH + SORT
+              SEARCH + TYPE FILTER
           ================================================= */}
 
           <div className="border-b border-gray-200 px-5 py-5">
@@ -881,90 +990,42 @@ export default function PoliciesPage() {
 
               </div>
 
-              {/* SORT */}
+              {/* TYPE FILTER */}
 
-              <div className="flex flex-col gap-2">
+              <div className="w-full lg:w-64">
 
-                <span className="text-sm font-semibold text-gray-700">
-                  مرتب‌سازی
-                </span>
+                <label
+                  htmlFor="policy-type-filter"
+                  className="mb-2 block text-sm font-semibold text-gray-700"
+                >
+                  نوع بیمه‌نامه
+                </label>
 
-                <div className="flex flex-wrap gap-2">
+                <select
+                  id="policy-type-filter"
+                  value={typeFilter}
+                  onChange={(event) =>
+                    handleTypeFilterChange(
+                      event.target.value
+                    )
+                  }
+                  className="h-[46px] w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="">
+                    همه انواع
+                  </option>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleSort(
-                        "policy_number"
-                      )
-                    }
-                    className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
-                      sortField ===
-                      "policy_number"
-                        ? "border-blue-300 bg-blue-50 text-blue-700"
-                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    شماره بیمه‌نامه
-
-                    {sortField ===
-                      "policy_number" && (
-                      <span>
-                        {sortDirection ===
-                        "asc"
-                          ? "↑"
-                          : "↓"}
-                      </span>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleSort(
-                        "start_date"
-                      )
-                    }
-                    className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
-                      sortField ===
-                      "start_date"
-                        ? "border-blue-300 bg-blue-50 text-blue-700"
-                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    تاریخ شروع
-
-                    {sortField ===
-                      "start_date" && (
-                      <span>
-                        {sortDirection ===
-                        "asc"
-                          ? "↑"
-                          : "↓"}
-                      </span>
-                    )}
-                  </button>
-
-                  {sortField !==
-                    "recent" && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSortField(
-                          "recent"
-                        );
-                        setSortDirection(
-                          "desc"
-                        );
-                        setPage(1);
-                      }}
-                      className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                    >
-                      جدیدترین
-                    </button>
+                  {policyTypes.map(
+                    (type) => (
+                      <option
+                        key={type}
+                        value={type}
+                      >
+                        {type}
+                      </option>
+                    )
                   )}
-
-                </div>
+                </select>
 
               </div>
 
@@ -1026,12 +1087,35 @@ export default function PoliciesPage() {
 
             </p>
 
-            {search.trim() !==
-              "" && (
-              <p className="text-xs text-gray-500">
-                جستجو بر اساس نام مشتری یا شماره بیمه‌نامه
-              </p>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+
+              {search.trim() !==
+                "" && (
+                <p className="text-xs text-gray-500">
+                  جستجو بر اساس نام مشتری یا شماره بیمه‌نامه
+                </p>
+              )}
+
+              {sortField !==
+                "recent" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSortField(
+                      "recent"
+                    );
+                    setSortDirection(
+                      "desc"
+                    );
+                    setPage(1);
+                  }}
+                  className="text-xs font-medium text-blue-600 transition hover:text-blue-800"
+                >
+                  بازگشت به جدیدترین
+                </button>
+              )}
+
+            </div>
 
           </div>
 
@@ -1051,20 +1135,24 @@ export default function PoliciesPage() {
               </h2>
 
               {search.trim() !==
-                "" ? (
+                "" ||
+              typeFilter !== "" ? (
                 <>
                   <p className="mt-2 text-sm text-gray-500">
-                    هیچ بیمه‌نامه‌ای با عبارت جستجوی واردشده پیدا نشد.
+                    هیچ بیمه‌نامه‌ای مطابق فیلترهای انتخاب‌شده پیدا نشد.
                   </p>
 
                   <button
                     type="button"
-                    onClick={() =>
-                      handleSearch("")
-                    }
+                    onClick={() => {
+                      handleSearch("");
+                      handleTypeFilterChange(
+                        ""
+                      );
+                    }}
                     className="mt-5 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
                   >
-                    پاک کردن جستجو
+                    پاک کردن فیلترها
                   </button>
                 </>
               ) : (
@@ -1094,21 +1182,24 @@ export default function PoliciesPage() {
                       مشتری
                     </th>
 
-                    <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600">
-                      شماره بیمه‌نامه
-                    </th>
+                    <SortableHeader
+                      label="شماره بیمه‌نامه"
+                      field="policy_number"
+                    />
 
                     <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600">
                       نوع بیمه
                     </th>
 
-                    <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600">
-                      تاریخ شروع
-                    </th>
+                    <SortableHeader
+                      label="تاریخ شروع"
+                      field="start_date"
+                    />
 
-                    <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600">
-                      تاریخ پایان
-                    </th>
+                    <SortableHeader
+                      label="تاریخ پایان"
+                      field="end_date"
+                    />
 
                     <th className="px-4 py-4 text-right text-xs font-semibold text-gray-600">
                       مبلغ کل

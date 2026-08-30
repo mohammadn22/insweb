@@ -31,21 +31,6 @@ const navigation = [
   },
 ];
 
-const accountingNavigation = [
-  {
-    title: "حسابداری کلی",
-    href: "/accounting",
-  },
-  {
-    title: "حساب مشتریان",
-    href: "/accounting/clients",
-  },
-  {
-    title: "سررسید گذشته",
-    href: "/accounting/overdue",
-  },
-];
-
 type SidebarProps = {
   collapsed: boolean;
   pinned: boolean;
@@ -70,10 +55,11 @@ export default function Sidebar({
       return pathname === "/";
     }
 
-    return pathname === href || pathname.startsWith(`${href}/`);
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}/`)
+    );
   }
-
-  const accountingActive = pathname.startsWith("/accounting");
 
   return (
     <>
@@ -104,7 +90,9 @@ export default function Sidebar({
           <div
             className={[
               "flex h-20 items-center border-b border-gray-200",
-              collapsed ? "justify-center px-3" : "justify-between px-5",
+              collapsed
+                ? "justify-center px-3"
+                : "justify-between px-5",
             ].join(" ")}
           >
             {!collapsed && (
@@ -142,11 +130,7 @@ export default function Sidebar({
             <div className="space-y-1">
 
               {navigation.map((item) => {
-                const active =
-                  item.href === "/accounting"
-                    ? accountingActive
-                    : isActive(item.href);
-
+                const active = isActive(item.href);
                 const Icon = item.icon;
 
                 return (
@@ -154,7 +138,11 @@ export default function Sidebar({
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
-                    title={collapsed ? item.title : undefined}
+                    title={
+                      collapsed
+                        ? item.title
+                        : undefined
+                    }
                     className={[
                       "group flex items-center rounded-xl transition",
                       collapsed
@@ -178,41 +166,6 @@ export default function Sidebar({
 
             </div>
 
-            {/* ACCOUNTING SUBMENU */}
-
-            {accountingActive && !collapsed && (
-              <div className="mt-5 border-t border-gray-100 pt-5">
-
-                <p className="mb-2 px-3 text-xs font-semibold text-gray-400">
-                  بخش حسابداری
-                </p>
-
-                <div className="space-y-1">
-
-                  {accountingNavigation.map((item) => {
-                    const active = isActive(item.href);
-
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className={[
-                          "block rounded-lg px-3 py-2.5 text-sm transition",
-                          active
-                            ? "bg-gray-900 text-white"
-                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                        ].join(" ")}
-                      >
-                        {item.title}
-                      </Link>
-                    );
-                  })}
-
-                </div>
-              </div>
-            )}
-
           </nav>
 
           {/* QUICK ACTIONS */}
@@ -226,6 +179,8 @@ export default function Sidebar({
 
               <div className="space-y-2">
 
+                {/* New Client */}
+
                 <Link
                   href="/clients/new"
                   onClick={() => setMobileOpen(false)}
@@ -234,12 +189,24 @@ export default function Sidebar({
                   + مشتری جدید
                 </Link>
 
+                {/* New Policy */}
+
                 <Link
                   href="/policies/new"
                   onClick={() => setMobileOpen(false)}
                   className="block rounded-lg bg-black px-3 py-2.5 text-center text-sm font-medium text-white transition hover:bg-gray-800"
                 >
                   + بیمه‌نامه جدید
+                </Link>
+
+                {/* New Payment */}
+
+                <Link
+                  href="/payments/new"
+                  onClick={() => setMobileOpen(false)}
+                  className="block rounded-lg bg-[#0066CC] px-3 py-2.5 text-center text-sm font-medium text-white transition hover:bg-[#0057AD]"
+                >
+                  + پرداختی جدید
                 </Link>
 
               </div>
@@ -254,7 +221,9 @@ export default function Sidebar({
             <div
               className={[
                 "flex items-center",
-                collapsed ? "justify-center" : "justify-between",
+                collapsed
+                  ? "justify-center"
+                  : "justify-between",
               ].join(" ")}
             >
 
@@ -262,19 +231,27 @@ export default function Sidebar({
 
               {!collapsed && (
                 <button
-                  onClick={() => setPinned(!pinned)}
+                  onClick={() =>
+                    setPinned(!pinned)
+                  }
                   className={[
                     "flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition",
                     pinned
                       ? "bg-gray-100 text-gray-900"
                       : "text-gray-500 hover:bg-gray-50",
                   ].join(" ")}
-                  title={pinned ? "باز کردن پین" : "پین کردن منو"}
+                  title={
+                    pinned
+                      ? "باز کردن پین"
+                      : "پین کردن منو"
+                  }
                 >
                   <PinIcon />
 
                   <span>
-                    {pinned ? "پین شده" : "پین نشده"}
+                    {pinned
+                      ? "پین شده"
+                      : "پین نشده"}
                   </span>
                 </button>
               )}
@@ -282,11 +259,19 @@ export default function Sidebar({
               {/* Collapse */}
 
               <button
-                onClick={() => setCollapsed(!collapsed)}
+                onClick={() =>
+                  setCollapsed(!collapsed)
+                }
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
-                title={collapsed ? "باز کردن منو" : "جمع کردن منو"}
+                title={
+                  collapsed
+                    ? "باز کردن منو"
+                    : "جمع کردن منو"
+                }
               >
-                <CollapseIcon collapsed={collapsed} />
+                <CollapseIcon
+                  collapsed={collapsed}
+                />
               </button>
 
             </div>
@@ -316,10 +301,34 @@ function DashboardIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
+      <rect
+        x="3"
+        y="3"
+        width="7"
+        height="7"
+        rx="1"
+      />
+      <rect
+        x="14"
+        y="3"
+        width="7"
+        height="7"
+        rx="1"
+      />
+      <rect
+        x="3"
+        y="14"
+        width="7"
+        height="7"
+        rx="1"
+      />
+      <rect
+        x="14"
+        y="14"
+        width="7"
+        height="7"
+        rx="1"
+      />
     </svg>
   );
 }
@@ -419,13 +428,9 @@ function CollapseIcon({
       strokeLinejoin="round"
     >
       {collapsed ? (
-        <>
-          <path d="M9 18l6-6-6-6" />
-        </>
+        <path d="M9 18l6-6-6-6" />
       ) : (
-        <>
-          <path d="M15 18l-6-6 6-6" />
-        </>
+        <path d="M15 18l-6-6 6-6" />
       )}
     </svg>
   );
@@ -444,8 +449,18 @@ function DebtIcon() {
       strokeLinejoin="round"
     >
       <circle cx="12" cy="12" r="9" />
-      <line x1="12" y1="8" x2="12" y2="13" />
-      <line x1="12" y1="16" x2="12.01" y2="16" />
+      <line
+        x1="12"
+        y1="8"
+        x2="12"
+        y2="13"
+      />
+      <line
+        x1="12"
+        y1="16"
+        x2="12.01"
+        y2="16"
+      />
     </svg>
   );
 }
