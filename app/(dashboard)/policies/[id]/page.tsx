@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import RecordPaymentForm from "./RecordPaymentForm";
+import DeletePolicyButton from "./DeletePolicyButton";
 
 type PolicyPageProps = {
   params: Promise<{
@@ -346,7 +347,19 @@ export default async function PolicyDetailsPage({
             <span aria-hidden="true">←</span>
             بازگشت به مشتری
           </Link>
+<div className="flex flex-wrap items-center justify-start gap-3" dir="ltr">
+  <Link
+    href={`/policies/${policy.id}/edit`}
+    className="inline-flex h-11 items-center justify-center rounded-lg bg-[#0066CC] px-5 text-sm font-semibold text-white transition hover:bg-[#0052a3]"
+  >
+    ویرایش بیمه‌نامه
+  </Link>
 
+  <DeletePolicyButton
+    policyId={policy.id}
+    policyNumber={policy.policy_number}
+  />
+</div>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -364,6 +377,7 @@ export default async function PolicyDetailsPage({
                   </span>
                 )}
               </div>
+              
 
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
                 بیمه‌نامه {policy.policy_number}
