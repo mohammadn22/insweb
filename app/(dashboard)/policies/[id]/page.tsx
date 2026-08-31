@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
-import RecordPaymentForm from "./RecordPaymentForm";
+import AddPaymentButton from "./AddPaymentButton";
 import DeletePolicyButton from "./DeletePolicyButton";
 
 type PolicyPageProps = {
@@ -472,7 +472,7 @@ export default async function PolicyDetailsPage({
             <p className="mt-2 text-2xl font-bold">
               {formatMoney(totalPrice)}
             </p>
-            <p className="mt-1 text-xs text-[#666666]">تومان</p>
+            <p className="mt-1 text-xs text-[#666666]">ریال</p>
           </div>
 
           <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm">
@@ -480,7 +480,7 @@ export default async function PolicyDetailsPage({
             <p className="mt-2 text-2xl font-bold">
               {formatMoney(totalTransactionAmount)}
             </p>
-            <p className="mt-1 text-xs text-[#666666]">تومان</p>
+            <p className="mt-1 text-xs text-[#666666]">ریال</p>
           </div>
 
           <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm">
@@ -488,7 +488,7 @@ export default async function PolicyDetailsPage({
             <p className="mt-2 text-2xl font-bold text-green-700">
               {formatMoney(totalAllocatedAmount)}
             </p>
-            <p className="mt-1 text-xs text-[#666666]">تومان</p>
+            <p className="mt-1 text-xs text-[#666666]">ریال</p>
           </div>
 
           <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm">
@@ -496,7 +496,7 @@ export default async function PolicyDetailsPage({
             <p className="mt-2 text-2xl font-bold text-red-600">
               {formatMoney(totalOutstanding)}
             </p>
-            <p className="mt-1 text-xs text-[#666666]">تومان</p>
+            <p className="mt-1 text-xs text-[#666666]">ریال</p>
           </div>
 
           <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm">
@@ -547,7 +547,7 @@ export default async function PolicyDetailsPage({
             <div className="text-left">
               <p className="text-sm text-[#666666]">مانده حساب</p>
               <p className="mt-1 text-xl font-bold">
-                {formatMoney(totalOutstanding)} تومان
+                {formatMoney(totalOutstanding)} ریال
               </p>
             </div>
           </div>
@@ -562,7 +562,7 @@ export default async function PolicyDetailsPage({
           {unallocatedAmount > 0 && (
             <div className="mt-5 rounded-lg border-r-4 border-orange-400 bg-orange-50 px-4 py-3 text-sm text-orange-800">
               مبلغ{" "}
-              <strong>{formatMoney(unallocatedAmount)} تومان</strong>{" "}
+              <strong>{formatMoney(unallocatedAmount)} ریال</strong>{" "}
               دریافت شده اما هنوز به برنامه پرداخت تخصیص داده نشده است.
             </div>
           )}
@@ -706,18 +706,23 @@ export default async function PolicyDetailsPage({
             </div>
           )}
         </section>
+        
+          {/* ADD PAYMENT */}
+          <section className="mb-6 rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-bold">
+                  پرداخت‌ها
+                </h2>
 
-        {/* RECORD PAYMENT */}
-        <section className="mb-6 rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm sm:p-6">
-          <div className="mb-5">
-            <h2 className="text-xl font-bold">ثبت پرداخت</h2>
-            <p className="mt-1 text-sm text-[#666666]">
-              دریافت جدید مشتری را برای این بیمه‌نامه ثبت کنید.
-            </p>
-          </div>
+                <p className="mt-1 text-sm text-[#666666]">
+                  برای ثبت دریافت جدید از این گزینه استفاده کنید.
+                </p>
+              </div>
 
-          <RecordPaymentForm policyId={id} />
-        </section>
+              <AddPaymentButton policyId={id} />
+            </div>
+          </section>
 
         {/* TRANSACTIONS */}
         <section className="rounded-xl border border-[#e5e7eb] bg-white shadow-sm">
@@ -804,7 +809,7 @@ export default async function PolicyDetailsPage({
                           {formatMoney(
                             Number(transaction.amount)
                           )}{" "}
-                          تومان
+                          ریال
                         </td>
 
                         <td className="px-5 py-4 text-sm">
